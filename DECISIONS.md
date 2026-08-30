@@ -177,3 +177,25 @@ Refresh tokens are stateless JWTs. There is no backend revoke endpoint. Logout c
 ### Minimal protected home
 
 `/` is a protected landing page with the current email and a logout button. Login and signup are guest-only. This is enough to exercise the auth flow; the application dashboard belongs to Stage 8.
+
+## Stage 8 — Application UI
+
+### Dashboard recent activity uses the applications list API
+
+`GET /api/v1/analytics/summary` does not return an activity feed. The dashboard shows summary metrics from that endpoint and loads the five most recently updated applications with `GET /api/v1/applications?sort=updated_at&order=desc&page_size=5`. No extra analytics are computed on the client. `average_time_to_response_days` is shown as “Not available” when the API returns `null`.
+
+### Filters and pagination stay on the server
+
+The applications page sends `page`, `page_size`, `sort`, `order`, `status`, `company`, `deadline_before`, `deadline_after`, and `search` as query parameters. Search and company inputs are debounced (300ms) so typing does not fire a request per keystroke. The client does not paginate or filter a full in-memory dataset.
+
+### PUT bodies contain only changed fields
+
+Application and interview edits send a partial body matching the backend’s unset-field semantics. Unchanged fields are omitted so a notes or status edit cannot overwrite other columns. Blank optional text is sent as `null` when the user cleared a previously filled field.
+
+### Interview state lives in the detail page, not the application record
+
+Interview rounds are loaded from the nested interview endpoints and are not copied into application list/detail payloads. Destructive deletes use an in-page confirmation dialog; there is no soft-delete API.
+
+### No extra state-management library
+
+Stage 8 keeps React local state, the existing AuthContext, and the Stage 7 Axios client. Dashboard and list screens refetch on mount so returning from create/edit/delete shows current data without a global cache.
