@@ -14,7 +14,7 @@ SQLAlchemy
 PostgreSQL
 ```
 
-Stages 1–2 establish the project foundation and database layer. Authentication, application tracking, analytics, and AI features are added in later stages.
+Stages 1–3 establish the project foundation, database layer, and authentication. Application tracking, analytics, and AI features are added in later stages.
 
 ## Local setup
 

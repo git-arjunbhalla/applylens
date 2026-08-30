@@ -82,3 +82,7 @@ pytest
 | `DEBUG` | Enables SQLAlchemy echo logging when true |
 | `DATABASE_URL` | Async PostgreSQL URL (`postgresql+asyncpg://...`) |
 | `CORS_ORIGINS` | Comma-separated allowed frontend origins |
+| `JWT_SECRET` | Secret used to sign access and refresh tokens |
+| `JWT_ALGORITHM` | JWT signing algorithm (`HS256`) |
+| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | Access-token lifetime in minutes |
+| `JWT_REFRESH_TOKEN_EXPIRE_DAYS` | Refresh-token lifetime in days |

@@ -63,3 +63,29 @@ Foreign keys use `ON DELETE CASCADE` so deleting a user removes their applicatio
 ### Migration tests without a live PostgreSQL
 
 This environment did not have PostgreSQL listening on localhost. The Alembic upgrade/downgrade test applies the initial revision to a temporary SQLite database. Production and local development still target PostgreSQL.
+
+## Stage 3 — Authentication
+
+### Stateless JWT refresh tokens
+
+Access and refresh tokens are both signed JWTs. They are not stored in the database. This keeps Stage 3 small and avoids a token table before there is a logout/revocation requirement. Individual tokens cannot be revoked until they expire, unless `JWT_SECRET` is rotated.
+
+### Separate token types
+
+Every token includes a `type` claim (`access` or `refresh`). Protected routes accept only access tokens. `/auth/refresh` accepts only refresh tokens. Signature, expiration, `sub`, and `type` are all validated.
+
+### bcrypt without Passlib
+
+Passwords are hashed with the `bcrypt` package directly. Passlib was skipped to avoid its known bcrypt-backend version conflicts and to keep the hashing code easy to read.
+
+### Signup returns tokens
+
+Successful signup returns the same token payload as login so a new user is authenticated immediately. Password hashes are never included in responses.
+
+### Shared login error
+
+Unknown emails and incorrect passwords both return `401` with `Invalid email or password` so the API does not reveal whether an email is registered.
+
+### Auth tests use in-memory SQLite
+
+Authentication tests override `get_db` with `sqlite+aiosqlite:///:memory:`. That matches the Stage 2 decision to keep automated tests runnable without a live PostgreSQL instance. Development and production still use PostgreSQL.

@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     # Comma-separated list of allowed frontend origins.
     cors_origins: str = "http://localhost:5173"
 
+    # JWT signing secret. Override this in every real environment.
+    jwt_secret: str = "dev-only-change-me-use-32-plus-bytes"
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 15
+    jwt_refresh_token_expire_days: int = 7
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
