@@ -8,9 +8,12 @@ import {
   updateInterview,
 } from '../services/interviews'
 import { formatDateTime, localDateTimeToIso, toDateTimeLocalValue } from '../utils/dates'
+import Alert from './Alert'
+import Button from './Button'
 import ConfirmDialog from './ConfirmDialog'
 import EmptyState from './EmptyState'
 import ErrorState from './ErrorState'
+import { inputClass } from './Field'
 import LoadingState from './LoadingState'
 
 const emptyForm = {
@@ -82,8 +85,6 @@ function validateInterviewForm(values) {
   return null
 }
 
-const inputClass = 'w-full rounded border border-neutral-300 px-3 py-2'
-
 function InterviewFormFields({ values, onChange }) {
   function handleChange(event) {
     const { name, value } = event.target
@@ -93,7 +94,7 @@ function InterviewFormFields({ values, onChange }) {
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="text-sm text-neutral-700">Round name</span>
+        <span className="text-sm text-muted">Round name</span>
         <input
           className={`${inputClass} mt-1`}
           name="round_name"
@@ -102,7 +103,7 @@ function InterviewFormFields({ values, onChange }) {
         />
       </label>
       <label className="block">
-        <span className="text-sm text-neutral-700">Scheduled time</span>
+        <span className="text-sm text-muted">Scheduled time</span>
         <input
           className={`${inputClass} mt-1`}
           type="datetime-local"
@@ -112,7 +113,7 @@ function InterviewFormFields({ values, onChange }) {
         />
       </label>
       <label className="block">
-        <span className="text-sm text-neutral-700">Outcome</span>
+        <span className="text-sm text-muted">Outcome</span>
         <select
           className={`${inputClass} mt-1`}
           name="outcome"
@@ -127,7 +128,7 @@ function InterviewFormFields({ values, onChange }) {
         </select>
       </label>
       <label className="block">
-        <span className="text-sm text-neutral-700">Notes</span>
+        <span className="text-sm text-muted">Notes</span>
         <textarea
           className={`${inputClass} mt-1`}
           name="notes"
@@ -250,7 +251,7 @@ function InterviewSection({ applicationId }) {
   if (status === 'loading') {
     return (
       <section className="mt-10">
-        <h2 className="text-xl font-semibold text-neutral-900">Interview rounds</h2>
+        <h2 className="font-display text-xl font-semibold text-ink">Interview rounds</h2>
         <div className="mt-4">
           <LoadingState message="Loading interview rounds…" />
         </div>
@@ -261,7 +262,7 @@ function InterviewSection({ applicationId }) {
   if (status === 'error') {
     return (
       <section className="mt-10">
-        <h2 className="text-xl font-semibold text-neutral-900">Interview rounds</h2>
+        <h2 className="font-display text-xl font-semibold text-ink">Interview rounds</h2>
         <div className="mt-4">
           <ErrorState message={error} onRetry={loadInterviews} />
         </div>
@@ -272,10 +273,10 @@ function InterviewSection({ applicationId }) {
   return (
     <section className="mt-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-neutral-900">Interview rounds</h2>
+        <h2 className="font-display text-xl font-semibold text-ink">Interview rounds</h2>
         {!isCreating ? (
-          <button
-            className="rounded border border-neutral-300 px-3 py-2 text-sm text-neutral-900"
+          <Button
+            variant="secondary"
             type="button"
             onClick={() => {
               setIsCreating(true)
@@ -284,32 +285,24 @@ function InterviewSection({ applicationId }) {
             }}
           >
             Add interview round
-          </button>
+          </Button>
         ) : null}
       </div>
 
-      {formError ? (
-        <p className="mt-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          {formError}
-        </p>
-      ) : null}
+      {formError ? <Alert className="mt-4">{formError}</Alert> : null}
 
       {isCreating ? (
-        <form className="mt-4 rounded border border-neutral-200 p-4" onSubmit={handleCreate} noValidate>
-          <h3 className="font-medium text-neutral-900">New interview round</h3>
+        <form className="mt-4 rounded-lg border border-line bg-surface p-4" onSubmit={handleCreate} noValidate>
+          <h3 className="font-medium text-ink">New interview round</h3>
           <div className="mt-3">
             <InterviewFormFields values={createValues} onChange={setCreateValues} />
           </div>
           <div className="mt-4 flex gap-3">
-            <button
-              className="rounded bg-neutral-900 px-3 py-2 text-white disabled:opacity-60"
-              type="submit"
-              disabled={isSavingCreate}
-            >
+            <Button type="submit" disabled={isSavingCreate}>
               {isSavingCreate ? 'Saving…' : 'Create round'}
-            </button>
-            <button
-              className="rounded border border-neutral-300 px-3 py-2"
+            </Button>
+            <Button
+              variant="secondary"
               type="button"
               onClick={() => {
                 setIsCreating(false)
@@ -317,7 +310,7 @@ function InterviewSection({ applicationId }) {
               }}
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       ) : null}
@@ -332,20 +325,16 @@ function InterviewSection({ applicationId }) {
       ) : (
         <ul className="mt-4 space-y-3">
           {interviews.map((interview) => (
-            <li key={interview.id} className="rounded border border-neutral-200 p-4">
+            <li key={interview.id} className="rounded-lg border border-line bg-surface p-4">
               {editingId === interview.id ? (
                 <form onSubmit={handleEdit} noValidate>
                   <InterviewFormFields values={editValues} onChange={setEditValues} />
                   <div className="mt-4 flex gap-3">
-                    <button
-                      className="rounded bg-neutral-900 px-3 py-2 text-white disabled:opacity-60"
-                      type="submit"
-                      disabled={isSavingEdit}
-                    >
+                    <Button type="submit" disabled={isSavingEdit}>
                       {isSavingEdit ? 'Saving…' : 'Save round'}
-                    </button>
-                    <button
-                      className="rounded border border-neutral-300 px-3 py-2"
+                    </Button>
+                    <Button
+                      variant="secondary"
                       type="button"
                       onClick={() => {
                         setEditingId(null)
@@ -353,25 +342,23 @@ function InterviewSection({ applicationId }) {
                       }}
                     >
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </form>
               ) : (
                 <div>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="font-medium text-neutral-900">{interview.round_name}</p>
-                      <p className="mt-1 text-sm text-neutral-600">
-                        {formatDateTime(interview.scheduled_at)}
-                      </p>
-                      <p className="mt-1 text-sm text-neutral-700">Outcome: {interview.outcome}</p>
+                      <p className="font-medium text-ink">{interview.round_name}</p>
+                      <p className="mt-1 text-sm text-muted">{formatDateTime(interview.scheduled_at)}</p>
+                      <p className="mt-1 text-sm text-ink">Outcome: {interview.outcome}</p>
                       {interview.notes ? (
-                        <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-700">{interview.notes}</p>
+                        <p className="mt-2 whitespace-pre-wrap text-sm text-muted">{interview.notes}</p>
                       ) : null}
                     </div>
                     <div className="flex gap-2">
-                      <button
-                        className="rounded border border-neutral-300 px-3 py-1 text-sm"
+                      <Button
+                        variant="secondary"
                         type="button"
                         onClick={() => {
                           setEditingId(interview.id)
@@ -380,14 +367,10 @@ function InterviewSection({ applicationId }) {
                         }}
                       >
                         Edit
-                      </button>
-                      <button
-                        className="rounded border border-red-300 px-3 py-1 text-sm text-red-800"
-                        type="button"
-                        onClick={() => setPendingDelete(interview)}
-                      >
+                      </Button>
+                      <Button variant="danger" type="button" onClick={() => setPendingDelete(interview)}>
                         Delete
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ApplicationForm from '../components/ApplicationForm'
+import Page from '../components/Page'
 import { createApplication } from '../services/applications'
 import { getApiErrorMessage } from '../services/authErrors'
 import { normalizeApplicationForm, validateApplicationForm } from '../utils/applicationPayload'
@@ -43,13 +44,16 @@ function ApplicationCreatePage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-10">
+    <Page width="narrow">
       <p className="text-sm">
-        <Link className="underline" to="/applications">
+        <Link
+          className="underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          to="/applications"
+        >
           Back to applications
         </Link>
       </p>
-      <h1 className="mt-4 text-3xl font-semibold text-neutral-900">New application</h1>
+      <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-ink">New application</h1>
       <div className="mt-8">
         <ApplicationForm
           values={values}
@@ -60,7 +64,7 @@ function ApplicationCreatePage() {
           error={error}
         />
       </div>
-    </main>
+    </Page>
   )
 }
 

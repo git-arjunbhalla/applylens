@@ -199,3 +199,17 @@ Interview rounds are loaded from the nested interview endpoints and are not copi
 ### No extra state-management library
 
 Stage 8 keeps React local state, the existing AuthContext, and the Stage 7 Axios client. Dashboard and list screens refetch on mount so returning from create/edit/delete shows current data without a global cache.
+
+## Stage 9 — UI polish
+
+### Theme persistence is localStorage, not a user-profile API
+
+Theme preference is stored under `applylens.theme` (`light` or `dark`). When nothing is stored, the client follows `prefers-color-scheme`. A small inline script in `index.html` applies the class before React hydrates to avoid a flash. Theme is not sent to the backend; there is no user settings endpoint.
+
+### Recharts for status counts only
+
+The dashboard chart plots `counts_by_status` from `GET /api/v1/analytics/summary`. No client-side metrics were invented and the analytics API was not changed. The existing status list remains so the same data stays readable without the chart.
+
+### Shared presentational components, no design-system package
+
+Buttons, fields, cards, alerts, page chrome, and the brand mark are small local components. Tailwind v4 tokens in `index.css` define light and dark palettes around fluorescent orange, cream, and charcoal. Google Fonts (Fraunces + Source Sans 3) are linked from `index.html` rather than adding a font package.

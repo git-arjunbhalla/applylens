@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import Button, { buttonClass } from '../components/Button'
 import EmptyState from '../components/EmptyState'
 import ErrorState from '../components/ErrorState'
+import { inputClass } from '../components/Field'
 import LoadingState from '../components/LoadingState'
+import Page, { PageHeader } from '../components/Page'
 import StatusBadge from '../components/StatusBadge'
 import {
   APPLICATION_SORT_FIELDS,
@@ -13,8 +16,6 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { listApplications } from '../services/applications'
 import { getApiErrorMessage } from '../services/authErrors'
 import { formatDate } from '../utils/dates'
-
-const inputClass = 'rounded border border-neutral-300 px-3 py-2'
 
 function ApplicationsPage() {
   const [searchInput, setSearchInput] = useState('')
@@ -92,22 +93,25 @@ function ApplicationsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold text-neutral-900">Applications</h1>
-          <p className="mt-2 text-neutral-600">Search, filter, and track your applications.</p>
-        </div>
-        <Link className="rounded bg-neutral-900 px-3 py-2 text-white" to="/applications/new">
-          New application
-        </Link>
-      </div>
+    <Page>
+      <PageHeader
+        title="Applications"
+        description="Search, filter, and track your applications."
+        action={
+          <Link className={buttonClass('primary')} to="/applications/new">
+            New application
+          </Link>
+        }
+      />
 
-      <form className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3" onSubmit={(event) => event.preventDefault()}>
+      <form
+        className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        onSubmit={(event) => event.preventDefault()}
+      >
         <label className="block">
-          <span className="text-sm text-neutral-700">Search</span>
+          <span className="text-sm text-muted">Search</span>
           <input
-            className={`${inputClass} mt-1 w-full`}
+            className={`${inputClass} mt-1`}
             value={searchInput}
             onChange={(event) => {
               setSearchInput(event.target.value)
@@ -117,9 +121,9 @@ function ApplicationsPage() {
           />
         </label>
         <label className="block">
-          <span className="text-sm text-neutral-700">Company</span>
+          <span className="text-sm text-muted">Company</span>
           <input
-            className={`${inputClass} mt-1 w-full`}
+            className={`${inputClass} mt-1`}
             value={companyInput}
             onChange={(event) => {
               setCompanyInput(event.target.value)
@@ -128,9 +132,9 @@ function ApplicationsPage() {
           />
         </label>
         <label className="block">
-          <span className="text-sm text-neutral-700">Status</span>
+          <span className="text-sm text-muted">Status</span>
           <select
-            className={`${inputClass} mt-1 w-full`}
+            className={`${inputClass} mt-1`}
             value={statusFilter}
             onChange={(event) => {
               setStatusFilter(event.target.value)
@@ -146,9 +150,9 @@ function ApplicationsPage() {
           </select>
         </label>
         <label className="block">
-          <span className="text-sm text-neutral-700">Deadline after</span>
+          <span className="text-sm text-muted">Deadline after</span>
           <input
-            className={`${inputClass} mt-1 w-full`}
+            className={`${inputClass} mt-1`}
             type="date"
             value={deadlineAfter}
             onChange={(event) => {
@@ -158,9 +162,9 @@ function ApplicationsPage() {
           />
         </label>
         <label className="block">
-          <span className="text-sm text-neutral-700">Deadline before</span>
+          <span className="text-sm text-muted">Deadline before</span>
           <input
-            className={`${inputClass} mt-1 w-full`}
+            className={`${inputClass} mt-1`}
             type="date"
             value={deadlineBefore}
             onChange={(event) => {
@@ -170,9 +174,9 @@ function ApplicationsPage() {
           />
         </label>
         <label className="block">
-          <span className="text-sm text-neutral-700">Sort by</span>
+          <span className="text-sm text-muted">Sort by</span>
           <select
-            className={`${inputClass} mt-1 w-full`}
+            className={`${inputClass} mt-1`}
             value={sort}
             onChange={(event) => {
               setSort(event.target.value)
@@ -187,9 +191,9 @@ function ApplicationsPage() {
           </select>
         </label>
         <label className="block">
-          <span className="text-sm text-neutral-700">Sort order</span>
+          <span className="text-sm text-muted">Sort order</span>
           <select
-            className={`${inputClass} mt-1 w-full`}
+            className={`${inputClass} mt-1`}
             value={order}
             onChange={(event) => {
               setOrder(event.target.value)
@@ -201,9 +205,9 @@ function ApplicationsPage() {
           </select>
         </label>
         <label className="block">
-          <span className="text-sm text-neutral-700">Page size</span>
+          <span className="text-sm text-muted">Page size</span>
           <select
-            className={`${inputClass} mt-1 w-full`}
+            className={`${inputClass} mt-1`}
             value={pageSize}
             onChange={(event) => {
               setPageSize(Number(event.target.value))
@@ -220,9 +224,9 @@ function ApplicationsPage() {
       </form>
 
       {hasActiveFilters ? (
-        <button className="mt-4 text-sm underline" type="button" onClick={clearFilters}>
+        <Button className="mt-4" variant="ghost" type="button" onClick={clearFilters}>
           Clear filters
-        </button>
+        </Button>
       ) : null}
 
       {status === 'loading' ? (
@@ -248,11 +252,11 @@ function ApplicationsPage() {
             }
             action={
               hasActiveFilters ? (
-                <button className="rounded border border-neutral-300 px-3 py-2" type="button" onClick={clearFilters}>
+                <Button variant="secondary" type="button" onClick={clearFilters}>
                   Clear filters
-                </button>
+                </Button>
               ) : (
-                <Link className="rounded bg-neutral-900 px-3 py-2 text-white" to="/applications/new">
+                <Link className={buttonClass('primary')} to="/applications/new">
                   Create application
                 </Link>
               )
@@ -263,9 +267,9 @@ function ApplicationsPage() {
 
       {status === 'ready' && items.length > 0 ? (
         <div className="mt-8 overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
+            <table className="min-w-[36rem] w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-neutral-200">
+              <tr className="border-b border-line">
                 <th className="py-2 pr-4 font-medium">Company</th>
                 <th className="py-2 pr-4 font-medium">Role</th>
                 <th className="py-2 pr-4 font-medium">Status</th>
@@ -275,9 +279,12 @@ function ApplicationsPage() {
             </thead>
             <tbody>
               {items.map((application) => (
-                <tr key={application.id} className="border-b border-neutral-100">
+                <tr key={application.id} className="border-b border-line/70">
                   <td className="py-3 pr-4">
-                    <Link className="underline" to={`/applications/${application.id}`}>
+                    <Link
+                      className="underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      to={`/applications/${application.id}`}
+                    >
                       {application.company_name}
                     </Link>
                   </td>
@@ -295,31 +302,31 @@ function ApplicationsPage() {
       ) : null}
 
       {status === 'ready' ? (
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm text-neutral-700">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
           <p>
             Page {Math.min(page, totalPages)} of {totalPages} · {total} total
           </p>
           <div className="flex gap-2">
-            <button
-              className="rounded border border-neutral-300 px-3 py-1 disabled:opacity-50"
+            <Button
+              variant="secondary"
               type="button"
               disabled={!canPrevious}
               onClick={() => setPage((current) => Math.max(1, current - 1))}
             >
               Previous
-            </button>
-            <button
-              className="rounded border border-neutral-300 px-3 py-1 disabled:opacity-50"
+            </Button>
+            <Button
+              variant="secondary"
               type="button"
               disabled={!canNext}
               onClick={() => setPage((current) => current + 1)}
             >
               Next
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
-    </main>
+    </Page>
   )
 }
 

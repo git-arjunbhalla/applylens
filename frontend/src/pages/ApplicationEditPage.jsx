@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import ApplicationForm from '../components/ApplicationForm'
 import ErrorState from '../components/ErrorState'
 import LoadingState from '../components/LoadingState'
+import Page from '../components/Page'
 import { getApplication, updateApplication } from '../services/applications'
 import { getApiErrorMessage } from '../services/authErrors'
 import {
@@ -77,13 +78,16 @@ function ApplicationEditPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-10">
+    <Page width="narrow">
       <p className="text-sm">
-        <Link className="underline" to={`/applications/${applicationId}`}>
+        <Link
+          className="underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          to={`/applications/${applicationId}`}
+        >
           Back to application
         </Link>
       </p>
-      <h1 className="mt-4 text-3xl font-semibold text-neutral-900">Edit application</h1>
+      <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-ink">Edit application</h1>
 
       {status === 'loading' ? (
         <div className="mt-8">
@@ -109,7 +113,7 @@ function ApplicationEditPage() {
           />
         </div>
       ) : null}
-    </main>
+    </Page>
   )
 }
 

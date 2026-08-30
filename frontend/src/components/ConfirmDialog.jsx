@@ -1,3 +1,6 @@
+import { useEffect } from 'react'
+import Button from './Button'
+
 function ConfirmDialog({
   title,
   message,
@@ -7,35 +10,35 @@ function ConfirmDialog({
   onConfirm,
   onCancel,
 }) {
+  useEffect(() => {
+    function onKeyDown(event) {
+      if (event.key === 'Escape' && !isConfirming) {
+        onCancel()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isConfirming, onCancel])
+
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40 px-4">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/40 px-4">
       <div
-        className="w-full max-w-md rounded bg-white p-6 shadow"
+        className="w-full max-w-md rounded-lg border border-line bg-surface p-6 shadow-lg"
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
       >
-        <h2 id="confirm-dialog-title" className="text-lg font-semibold text-neutral-900">
+        <h2 id="confirm-dialog-title" className="font-display text-lg font-semibold text-ink">
           {title}
         </h2>
-        <p className="mt-3 text-neutral-700">{message}</p>
+        <p className="mt-3 text-muted">{message}</p>
         <div className="mt-6 flex justify-end gap-3">
-          <button
-            className="rounded border border-neutral-300 px-3 py-2 text-neutral-900"
-            type="button"
-            onClick={onCancel}
-            disabled={isConfirming}
-          >
+          <Button variant="secondary" type="button" onClick={onCancel} disabled={isConfirming}>
             {cancelLabel}
-          </button>
-          <button
-            className="rounded bg-red-700 px-3 py-2 text-white disabled:opacity-60"
-            type="button"
-            onClick={onConfirm}
-            disabled={isConfirming}
-          >
+          </Button>
+          <Button variant="danger" type="button" onClick={onConfirm} disabled={isConfirming}>
             {isConfirming ? 'Deleting…' : confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

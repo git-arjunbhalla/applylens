@@ -67,13 +67,15 @@ describe('dashboard analytics', () => {
       }),
     })
 
-    expect(await screen.findByText('4')).toBeInTheDocument()
+    expect(await screen.findByText('Total applications')).toBeInTheDocument()
+    expect(screen.getByText('Total applications').parentElement).toHaveTextContent('4')
     expect(screen.getByText('Upcoming deadlines').parentElement).toHaveTextContent('2')
     expect(screen.getByText('Interview count').parentElement).toHaveTextContent('3')
     expect(screen.getByText('Offers').parentElement).toHaveTextContent('1')
     expect(screen.getByText('Rejections').parentElement).toHaveTextContent('1')
     expect(screen.getByText('50%')).toBeInTheDocument()
     expect(screen.getByText('Not available')).toBeInTheDocument()
+    expect(screen.getByLabelText('Application counts by status')).toBeInTheDocument()
     expect(screen.getByText('Acme')).toBeInTheDocument()
     expect(screen.queryByText(/no applications yet/i)).not.toBeInTheDocument()
   })

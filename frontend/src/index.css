@@ -1,1 +1,101 @@
 @import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
+  --color-canvas: var(--al-canvas);
+  --color-surface: var(--al-surface);
+  --color-ink: var(--al-ink);
+  --color-muted: var(--al-muted);
+  --color-line: var(--al-line);
+  --color-accent: var(--al-accent);
+  --color-accent-soft: var(--al-accent-soft);
+  --color-accent-ink: var(--al-accent-ink);
+  --color-danger: var(--al-danger);
+  --color-danger-bg: var(--al-danger-bg);
+  --color-danger-line: var(--al-danger-line);
+}
+
+:root {
+  color-scheme: light;
+  --al-canvas: #f6efe4;
+  --al-surface: #fffaf3;
+  --al-ink: #1b1612;
+  --al-muted: #6d6258;
+  --al-line: #e4d8c8;
+  --al-accent: #ff4d12;
+  --al-accent-soft: #ffd7b8;
+  --al-accent-ink: #1b1612;
+  --al-danger: #9f1d1d;
+  --al-danger-bg: #fde8e4;
+  --al-danger-line: #f0b8b0;
+  --al-hero-from: #fff4e4;
+  --al-hero-to: #ffc89a;
+}
+
+.dark {
+  color-scheme: dark;
+  --al-canvas: #14110f;
+  --al-surface: #1f1a16;
+  --al-ink: #f6efe4;
+  --al-muted: #b9aea3;
+  --al-line: #3a322b;
+  --al-accent: #ff6a2a;
+  --al-accent-soft: #5a2e18;
+  --al-accent-ink: #1b1612;
+  --al-danger: #ffb4a8;
+  --al-danger-bg: #3a1c1a;
+  --al-danger-line: #7a3a34;
+  --al-hero-from: #2a1c14;
+  --al-hero-to: #4a2818;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--al-canvas);
+  color: var(--al-ink);
+  font-family: var(--font-sans);
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .page-enter {
+    animation: page-enter 180ms ease-out;
+  }
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
