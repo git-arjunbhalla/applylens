@@ -131,3 +131,25 @@ Interview lists are not paginated. A single application has a small number of ro
 `InterviewRound.scheduled_at` is stored as `DateTime(timezone=True)`. Create and update reject naive datetimes so interview times are not ambiguous across environments.
 
 SQLite test storage drops timezone info. The public schema treats a naive stored value as UTC on serialize so API responses stay timezone-aware. PostgreSQL keeps `timestamptz` as stored.
+
+## Stage 6 — Analytics API
+
+### Upcoming deadlines use an inclusive UTC date window
+
+`upcoming_deadlines` counts owned applications whose `deadline` is on or after today's UTC date and on or before today + 7 calendar days. Today is included because a deadline due today is still upcoming. Null deadlines and past dates are excluded. `deadline` is a date-only field, so the window is calendar dates in UTC rather than a local timezone or a 7×24-hour rolling interval.
+
+### Response rate is status-based, not timestamp-based
+
+Response rate is `(OA + Interviewing + Offer + Rejected) / (total − Wishlist)`. Wishlist is excluded from the denominator because those applications have not been submitted. `Applied` is submitted but not a response. When the denominator is zero, the rate is `0.0`. Interview-round outcomes are not used for this metric.
+
+### Offers and rejections are application statuses
+
+`offers` and `rejections` count applications with status `Offer` and `Rejected`. Interview outcomes (`Passed` / `Failed`) are not treated as application-level offers or rejections.
+
+### Interview count is round rows, not applications
+
+`interview_count` is `COUNT(interview_rounds)` for the user's applications, not distinct applications. Aggregation starts from `interview_rounds` joined to owned applications so a round-heavy application cannot inflate `total_applications`.
+
+### Average time-to-response is not calculated
+
+The schema has `applied_date` but no response timestamp. `updated_at` changes on any edit, and interview `scheduled_at` is time-to-interview, not time-to-response. The field is returned as `null` rather than approximating from unreliable columns. No schema change was added to invent this metric.
