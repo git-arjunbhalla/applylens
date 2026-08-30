@@ -1,1 +1,1 @@
-# Application services will be added in later stages.
+# Domain services live in this package.

@@ -89,3 +89,25 @@ Unknown emails and incorrect passwords both return `401` with `Invalid email or 
 ### Auth tests use in-memory SQLite
 
 Authentication tests override `get_db` with `sqlite+aiosqlite:///:memory:`. That matches the Stage 2 decision to keep automated tests runnable without a live PostgreSQL instance. Development and production still use PostgreSQL.
+
+## Stage 4 — Application CRUD
+
+### Ownership is enforced in the query, not only in the response
+
+Every application query includes `user_id = current_user.id`. Get, update, and delete use that same owned-row lookup. Missing IDs and other users' IDs both return `404 Application not found` so the API does not confirm that another user's record exists.
+
+### List filtering and sorting happen in SQL
+
+Pagination (`page`, `page_size`), sorting, status, company, deadline range, and search are applied in SQLAlchemy before `LIMIT`/`OFFSET`. The list handler does not load a user's full application set into memory.
+
+### Search vs company filter
+
+`search` is a case-insensitive substring match against `company_name` or `role_title`. `company` is a case-insensitive exact match on `company_name`. LIKE wildcards in search text are escaped. Notes and job descriptions are not searched in this stage.
+
+### PUT is a partial update
+
+`PUT /applications/{id}` updates only the fields present in the request body. An empty body is rejected. This avoids forcing clients to resend the full application for a status or notes change.
+
+### Default list order
+
+The default sort is `created_at` descending, with `id` as a stable tiebreaker. Null deadlines sort last.
