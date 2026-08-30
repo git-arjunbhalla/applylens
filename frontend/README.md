@@ -12,7 +12,7 @@ npm run dev
 
 The app will be available at `http://localhost:5173`.
 
-The Stage 1 UI is a technical shell only. Visual identity, authentication, and product pages are added in later stages.
+Authentication (login, signup, session restore, logout) is implemented. Application tracking UI is added in later stages.
 
 ## Environment variables
 
@@ -27,3 +27,4 @@ The Stage 1 UI is a technical shell only. Visual identity, authentication, and p
 | `npm run dev` | Start the Vite development server |
 | `npm run build` | Production build |
 | `npm run preview` | Preview the production build |
+| `npm test` | Run frontend authentication tests |

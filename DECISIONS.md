@@ -153,3 +153,27 @@ Response rate is `(OA + Interviewing + Offer + Rejected) / (total − Wishlist)`
 ### Average time-to-response is not calculated
 
 The schema has `applied_date` but no response timestamp. `updated_at` changes on any edit, and interview `scheduled_at` is time-to-interview, not time-to-response. The field is returned as `null` rather than approximating from unreliable columns. No schema change was added to invent this metric.
+
+## Stage 7 — Frontend authentication
+
+### Access token stays in memory; refresh token uses localStorage
+
+The backend issues stateless JWTs in JSON and does not set httpOnly cookies. Switching to cookie-based auth would have required a backend redesign. For the MVP, the access token is kept only in module memory and attached by the Axios interceptor. The refresh token is stored in `localStorage` under `applylens.refresh_token` so a page reload can restore the session.
+
+This is an XSS tradeoff: script on the origin could read the refresh token. The access token is short-lived (15 minutes) and is not persisted, which limits the window if memory is dumped but does not protect against XSS. httpOnly cookies would be the more secure long-term option.
+
+### Session restore uses refresh then `/auth/me`
+
+On startup, if a refresh token is present, the client calls `POST /api/v1/auth/refresh`, stores the new tokens, then `GET /api/v1/auth/me` to load the current user. AuthContext treats that user object as the source of truth. Tokens are not placed in React context.
+
+### Axios interceptor refresh, single-flight
+
+A 401 on an authenticated request triggers one refresh. Concurrent 401s share the same in-flight refresh promise. Login, signup, and refresh requests do not enter that path, which prevents an infinite refresh loop. A failed refresh clears tokens and notifies AuthContext so protected routes return to login.
+
+### Logout is client-side only
+
+Refresh tokens are stateless JWTs. There is no backend revoke endpoint. Logout clears memory and `localStorage` and drops React auth state.
+
+### Minimal protected home
+
+`/` is a protected landing page with the current email and a logout button. Login and signup are guest-only. This is enough to exercise the auth flow; the application dashboard belongs to Stage 8.
