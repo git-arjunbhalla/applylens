@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import TokenError, decode_token
 from app.db.session import get_db
 from app.models.user import User
+from app.services.ai_client import AIClient, get_ai_client
+from app.services.ai_errors import AIError
 from app.services.auth import get_user_by_id
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -40,3 +42,13 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+
+def get_configured_ai_client() -> AIClient:
+    """Resolve the Stage 10 provider. Route handlers must not import Gemini."""
+    try:
+        return get_ai_client()
+    except AIError as exc:
+        from app.api.ai_http import http_exception_from_ai_error
+
+        raise http_exception_from_ai_error(exc) from exc

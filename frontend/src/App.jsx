@@ -10,6 +10,7 @@ import ApplicationEditPage from './pages/ApplicationEditPage'
 import ApplicationsPage from './pages/ApplicationsPage'
 import DashboardPage from './pages/DashboardPage'
 import LoginPage from './pages/LoginPage'
+import ResumeAnalysisPage from './pages/ResumeAnalysisPage'
 import SignupPage from './pages/SignupPage'
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
               <Route path="/applications/new" element={<ApplicationCreatePage />} />
               <Route path="/applications/:applicationId/edit" element={<ApplicationEditPage />} />
               <Route path="/applications/:applicationId" element={<ApplicationDetailPage />} />
+              <Route path="/analyze" element={<ResumeAnalysisPage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

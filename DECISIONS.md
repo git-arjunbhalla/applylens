@@ -247,3 +247,33 @@ Default pytest coverage does not call the live Gemini API. The suite must run wi
 ### Sync client for Stage 10
 
 The SDK client is synchronous. There are no AI endpoints yet. Later async route handlers can call this client via `asyncio.to_thread` rather than introducing workers or an extra framework.
+
+## Stage 11 — AI resume analysis
+
+### Resume and job description are request-only
+
+`POST /api/v1/ai/resume-analysis` accepts resume and JD text and does not persist them. Application records already store a job description field; this endpoint is a comparison tool, not a document store. That avoids writing untrusted resume text into PostgreSQL until a later stage needs it.
+
+### Structured output is validated twice
+
+The prompt asks for JSON matching `ResumeAnalysisResult`. `generate_json()` validates that schema. Incomplete or extra-only responses are rejected as `AIResponseError` rather than filling missing lists or inventing a score. Empty lists are allowed when the texts do not support an item.
+
+### Match score is an integer 0–100
+
+The spec names `match_score` without a range. An integer from 0 to 100 is bounded, easy to display, and mapped in the prompt. Values outside that range fail schema validation and become a 502 instead of being clamped.
+
+### Field names follow BUILD_SPEC
+
+The API uses `matching_skills` (not `matched_skills`) plus `missing_skills`, `strengths`, `weaknesses`, and `recommendations`.
+
+### AI errors stay generic at the HTTP boundary
+
+Configuration problems are 503, timeouts 504, and provider/parse/schema failures 502. Messages are fixed strings so provider exceptions and keys never appear in API responses. Extra JSON fields from the model are dropped by the response schema.
+
+### Async routes call the sync client in a thread
+
+The handler stays thin. `analyze_resume` builds the prompt and calls `client.generate_json` through `asyncio.to_thread`, matching the Stage 10 note.
+
+### Dedicated Analyze page
+
+The UI is a protected `/analyze` form with two text areas. Results are rendered as text lists, never as HTML. The page does not call Gemini and has no `VITE_*` AI variables. Per-user rate limits and stricter input-size policy are left to Stage 14.

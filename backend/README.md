@@ -93,6 +93,8 @@ pytest
 
 AI calls are made only from FastAPI through `app.services.ai_client`. React must not call Gemini and must not receive `AI_API_KEY`.
 
+Resume analysis: `POST /api/v1/ai/resume-analysis` (authenticated). It compares resume text to a job description and returns a validated structured result. The texts are not stored.
+
 Optional live check (not part of the default test suite):
 
 ```powershell

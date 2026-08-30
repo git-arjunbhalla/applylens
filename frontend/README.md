@@ -12,7 +12,7 @@ npm run dev
 
 The app will be available at `http://localhost:5173`.
 
-Authentication (login, signup, session restore, logout) is implemented. Application tracking UI is added in later stages.
+Authentication, application tracking, and resume/job-description analysis are implemented. Analysis calls FastAPI only; the Gemini key is never sent to the browser.
 
 ## Environment variables
 
@@ -27,4 +27,4 @@ Authentication (login, signup, session restore, logout) is implemented. Applicat
 | `npm run dev` | Start the Vite development server |
 | `npm run build` | Production build |
 | `npm run preview` | Preview the production build |
-| `npm test` | Run frontend authentication tests |
+| `npm test` | Run frontend tests |

@@ -14,7 +14,7 @@ SQLAlchemy
 PostgreSQL
 ```
 
-Stages 1–3 establish the project foundation, database layer, and authentication. Application tracking, analytics, and AI features are added in later stages.
+Stages 1–11 cover the project foundation, database, authentication, application tracking, interviews, analytics, UI, the AI provider abstraction, and resume/job-description analysis. Later stages add more AI features and deployment.
 
 ## Local setup
 

@@ -36,6 +36,9 @@ function AppLayout() {
               <NavLink to="/applications" className={navClass} onClick={() => setMenuOpen(false)}>
                 Applications
               </NavLink>
+              <NavLink to="/analyze" className={navClass} onClick={() => setMenuOpen(false)}>
+                Analyze
+              </NavLink>
             </nav>
           </div>
           <div className="flex items-center gap-2">
@@ -65,6 +68,9 @@ function AppLayout() {
               </NavLink>
               <NavLink to="/applications" className={navClass} onClick={() => setMenuOpen(false)}>
                 Applications
+              </NavLink>
+              <NavLink to="/analyze" className={navClass} onClick={() => setMenuOpen(false)}>
+                Analyze
               </NavLink>
             </div>
           </nav>
