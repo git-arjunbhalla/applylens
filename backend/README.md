@@ -86,3 +86,16 @@ pytest
 | `JWT_ALGORITHM` | JWT signing algorithm (`HS256`) |
 | `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | Access-token lifetime in minutes |
 | `JWT_REFRESH_TOKEN_EXPIRE_DAYS` | Refresh-token lifetime in days |
+| `AI_PROVIDER` | AI backend (`gemini` is the only implemented provider) |
+| `AI_API_KEY` | Gemini API key (backend only; never expose to the frontend) |
+| `AI_MODEL` | Gemini model name (default `gemini-2.5-flash`) |
+| `AI_TIMEOUT_SECONDS` | Provider request timeout in seconds |
+
+AI calls are made only from FastAPI through `app.services.ai_client`. React must not call Gemini and must not receive `AI_API_KEY`.
+
+Optional live check (not part of the default test suite):
+
+```powershell
+$env:APPLYLENS_LIVE_GEMINI="1"
+pytest tests/test_ai_client.py -k live_gemini
+```

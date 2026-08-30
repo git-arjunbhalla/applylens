@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,9 +30,19 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 15
     jwt_refresh_token_expire_days: int = 7
 
+    # AI provider is backend-only. Never expose the key to the frontend.
+    ai_provider: str = "gemini"
+    ai_api_key: SecretStr = SecretStr("")
+    ai_model: str = "gemini-2.5-flash"
+    ai_timeout_seconds: float = 30.0
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def ai_api_key_value(self) -> str:
+        return self.ai_api_key.get_secret_value().strip()
 
 
 @lru_cache

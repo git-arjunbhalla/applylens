@@ -213,3 +213,37 @@ The dashboard chart plots `counts_by_status` from `GET /api/v1/analytics/summary
 ### Shared presentational components, no design-system package
 
 Buttons, fields, cards, alerts, page chrome, and the brand mark are small local components. Tailwind v4 tokens in `index.css` define light and dark palettes around fluorescent orange, cream, and charcoal. Google Fonts (Fraunces + Source Sans 3) are linked from `index.html` rather than adding a font package.
+
+## Stage 10 — AI foundation
+
+### Provider abstraction, not a Gemini-specific API layer
+
+`AIClient` is the only surface later FastAPI endpoints should use (`generate_text`, `generate_json`). `get_ai_client()` selects the implementation from `AI_PROVIDER`. Gemini lives in `GeminiProvider`. OpenAI or Anthropic can be added as another subclass without changing route handlers.
+
+### Gemini as the first provider via `google-genai`
+
+The current SDK is `google-genai` (`google.genai.Client`), not the older `google-generativeai` package. The default model is `gemini-2.5-flash`, overridable with `AI_MODEL`. Request timeout is set through `HttpOptions.timeout` (milliseconds) from `AI_TIMEOUT_SECONDS`.
+
+### Configuration stays in Pydantic Settings
+
+`AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`, and `AI_TIMEOUT_SECONDS` are fields on the existing `Settings` object. There is no second config system. `AI_API_KEY` is a `SecretStr` so accidental `Settings` repr/debug output does not print the key.
+
+### Backend-only provider access
+
+The key is loaded only in FastAPI. No Vite/`VITE_*` AI variables and no frontend Gemini client. Stage 10 does not add AI HTTP routes; later stages will call the abstraction from FastAPI.
+
+### Structured responses are generic
+
+`generate_json` asks Gemini for `application/json` (and a Pydantic `response_schema` when one is provided), then `parse_structured_json` parses and validates server-side. Application-specific resume/JD schemas belong to Stage 11+. An unexpected type, empty body, invalid JSON, or failed schema validation becomes `AIResponseError` instead of a raw crash.
+
+### Timeouts and failures become application errors
+
+Provider timeouts (`httpx.TimeoutException` / `TimeoutError`) raise `AITimeoutError`. SDK `APIError` and other request failures raise `AIProviderError`. Missing `AI_API_KEY` / `AI_PROVIDER` raise `AIConfigurationError`. Unknown providers raise `AIUnsupportedProviderError`. Messages are generic and do not include the API key or raw SDK payloads.
+
+### Automated tests mock Gemini
+
+Default pytest coverage does not call the live Gemini API. The suite must run without a real key. A live smoke test exists but is skipped unless `APPLYLENS_LIVE_GEMINI=1`. That avoids flaky CI, quota use, and leaking secrets into test output.
+
+### Sync client for Stage 10
+
+The SDK client is synchronous. There are no AI endpoints yet. Later async route handlers can call this client via `asyncio.to_thread` rather than introducing workers or an extra framework.
