@@ -1,24 +1,28 @@
+import os
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
 from app.core.config import settings
-from app.db.session import Base
+from app.db.base import Base
+from app.db.url import to_sync_database_url
+from app.models import Application, InterviewRound, User  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
+database_url = to_sync_database_url(
+    os.environ.get("DATABASE_URL", settings.database_url)
+)
+config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging.
-# This line sets up loggers basically.
+# this line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Models and the first migration are added in Stage 2.
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -35,8 +39,8 @@ def run_migrations_offline() -> None:
     here as well.  By skipping the Engine creation
     we don't even need a DBAPI to be available.
 
-    Calls to context.execute() here emit the given string to the
-    script output.
+    Calls to context.execute() here emit the given string as they go
+    into the script output.
 
     """
     url = config.get_main_option("sqlalchemy.url")
@@ -45,6 +49,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        render_as_batch=url is not None and url.startswith("sqlite"),
     )
 
     with context.begin_transaction():
@@ -65,8 +70,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        url = config.get_main_option("sqlalchemy.url") or ""
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=url.startswith("sqlite"),
         )
 
         with context.begin_transaction():

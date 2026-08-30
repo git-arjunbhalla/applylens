@@ -23,7 +23,13 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
-4. Start the API:
+4. Apply database migrations (PostgreSQL must be running and `DATABASE_URL` must point at it):
+
+```powershell
+alembic upgrade head
+```
+
+5. Start the API:
 
 ```powershell
 uvicorn app.main:app --reload
@@ -43,7 +49,23 @@ Expected response:
 {"status":"ok"}
 ```
 
-PostgreSQL is not required for the health endpoint. Database models and migrations are added in Stage 2.
+PostgreSQL is not required for the health endpoint.
+
+## Database
+
+ApplyLens uses PostgreSQL in development and production. Alembic owns the schema.
+
+```powershell
+alembic upgrade head
+```
+
+Roll back the latest revision:
+
+```powershell
+alembic downgrade -1
+```
+
+The app uses `postgresql+asyncpg://` for SQLAlchemy. Alembic converts that URL to `postgresql+psycopg://` because migrations run on a synchronous engine.
 
 ## Tests
 
