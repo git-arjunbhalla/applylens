@@ -111,3 +111,23 @@ Pagination (`page`, `page_size`), sorting, status, company, deadline range, and 
 ### Default list order
 
 The default sort is `created_at` descending, with `id` as a stable tiebreaker. Null deadlines sort last.
+
+## Stage 5 — Interview-round tracking
+
+### Ownership is checked through the parent application
+
+Interview queries join `interview_rounds` to `applications` and require `applications.user_id = current_user.id`. List and create first confirm the application is owned. Missing applications and other users' applications both return `404 Application not found`. A missing round on an owned application returns `404 Interview round not found`. That keeps User A from learning whether User B's application or interview exists.
+
+### PUT is a partial update
+
+`PUT /applications/{application_id}/interviews/{id}` updates only the fields present in the request body, matching Stage 4 application updates. An empty body is rejected.
+
+### List is unpaginated
+
+Interview lists are not paginated. A single application has a small number of rounds, so the handler returns a JSON array ordered by `scheduled_at` ascending (unscheduled last), then `id`.
+
+### `scheduled_at` must be timezone-aware
+
+`InterviewRound.scheduled_at` is stored as `DateTime(timezone=True)`. Create and update reject naive datetimes so interview times are not ambiguous across environments.
+
+SQLite test storage drops timezone info. The public schema treats a naive stored value as UTC on serialize so API responses stay timezone-aware. PostgreSQL keeps `timestamptz` as stored.
