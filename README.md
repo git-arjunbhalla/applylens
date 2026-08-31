@@ -14,7 +14,7 @@ SQLAlchemy
 PostgreSQL
 ```
 
-Stages 1–14 cover the project foundation, database, authentication, application tracking, interviews, analytics, UI, the AI provider abstraction, standalone resume ATS analysis, resume-to-job-description matching, AI cover-letter drafts, and Redis-backed per-user AI rate limiting. Later stages add deployment.
+Stages 1–15 cover the project foundation, database, authentication, application tracking, interviews, analytics, UI, the AI provider abstraction, standalone resume ATS analysis, resume-to-job-description matching, AI cover-letter drafts, Redis-backed per-user AI rate limiting, and a testing/security review. Later stages add deployment.
 
 ## Local setup
 

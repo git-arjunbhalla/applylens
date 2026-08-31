@@ -213,4 +213,24 @@ describe('resume analyzer', () => {
 
     expect(await screen.findByText('78 / 100')).toBeInTheDocument()
   })
+
+  it('shows a safe 429 rate-limit message', async () => {
+    const user = userEvent.setup()
+    renderAnalyze({
+      'post /api/v1/ai/resume-analysis': () => ({
+        status: 429,
+        data: { detail: 'AI request limit exceeded. Please try again later.' },
+      }),
+    })
+
+    expect(await screen.findByRole('heading', { name: 'Resume Analyzer' })).toBeInTheDocument()
+    await user.upload(screen.getByLabelText('Resume PDF'), pdfFile())
+    await user.click(screen.getByRole('button', { name: 'Analyze Resume' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'AI request limit exceeded. Please try again later.',
+    )
+    expect(screen.queryByText(/redis/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('78 / 100')).not.toBeInTheDocument()
+  })
 })

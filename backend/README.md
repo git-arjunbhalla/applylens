@@ -73,6 +73,8 @@ The app uses `postgresql+asyncpg://` for SQLAlchemy. Alembic converts that URL t
 pytest
 ```
 
+The default suite uses an in-memory SQLite database, a fake Redis rate-limit backend, and a mocked AI client. It does not require PostgreSQL, Redis, or a Gemini API key. Ownership, authentication, PDF validation, and AI failure mapping are covered in `backend/tests/`.
+
 ## Environment variables
 
 | Variable | Purpose |

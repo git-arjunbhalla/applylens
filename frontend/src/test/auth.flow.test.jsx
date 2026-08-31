@@ -166,6 +166,19 @@ describe('frontend authentication flows', () => {
     })
   })
 
+  it('blocks unauthenticated users from AI routes', async () => {
+    installApiMock({})
+
+    for (const path of ['/analyze', '/jd-match', '/cover-letter']) {
+      const { unmount } = renderApp(path)
+      expect(await screen.findByRole('heading', { name: /log in/i })).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Resume Analyzer' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Job description match' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Cover letter' })).not.toBeInTheDocument()
+      unmount()
+    }
+  })
+
   it('validates signup fields before calling the API', async () => {
     const user = userEvent.setup()
     const { requests } = installApiMock({

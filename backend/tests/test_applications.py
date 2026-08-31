@@ -459,6 +459,42 @@ def test_create_requires_company_and_role(client: TestClient) -> None:
     assert response.status_code == 422
 
 
+def test_create_rejects_excessively_long_company_name(client: TestClient) -> None:
+    tokens = _signup(client)
+    response = _create_application(
+        client,
+        tokens["access_token"],
+        company_name="A" * 256,
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_rejects_invalid_date(client: TestClient) -> None:
+    tokens = _signup(client)
+    response = client.post(
+        APPLICATIONS_PATH,
+        headers=_auth_headers(tokens["access_token"]),
+        json={
+            "company_name": "Acme",
+            "role_title": "Engineer",
+            "applied_date": "not-a-date",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_retrieve_rejects_non_integer_id(client: TestClient) -> None:
+    tokens = _signup(client)
+    response = client.get(
+        f"{APPLICATIONS_PATH}/not-an-id",
+        headers=_auth_headers(tokens["access_token"]),
+    )
+
+    assert response.status_code == 422
+
+
 def test_create_rejects_invalid_status(client: TestClient) -> None:
     tokens = _signup(client)
     response = _create_application(

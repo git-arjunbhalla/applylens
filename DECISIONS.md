@@ -337,3 +337,22 @@ If Redis is missing, misconfigured, or unreachable, the limiter logs a warning a
 ### Limitations of the simple limiter
 
 A fixed window can allow a burst at the window boundary (up to 2× the limit across two adjacent hours). Fail-open means an attacker can bypass the quota while Redis is down. There is no request-body deduplication cache in this stage; input-size limits, provider timeouts, and error mapping remain those from Stages 10–13. The frontend reuses existing API error display for HTTP 429.
+
+## Stage 15 — Testing, security, and quality review
+
+### Tests target behavior, not coverage percentage
+
+Stage 15 added missing security, failure, and isolation cases rather than rewriting working application code. Existing CRUD, analytics, AI, and rate-limit tests were kept. No coverage framework was added.
+
+### AI and Redis stay mocked
+
+Automated tests never call Gemini and never require a Redis server. `FakeAIClient` and `FakeRateLimitBackend` stand in for those dependencies. The optional live Gemini test remains skipped unless `APPLYLENS_LIVE_GEMINI=1`.
+
+### Ownership is a first-class API test
+
+Authorization is enforced in FastAPI, not only in React route guards. Dedicated User A / User B tests assert that another user cannot retrieve, update, or delete applications or interviews, and that list/analytics responses do not leak foreign rows.
+
+### Frontend verification includes production build
+
+Frontend tests cover authentication, application flows, AI forms (including 429), and a source scan for backend secrets. `npm run build` remains part of Stage 15 verification.
+

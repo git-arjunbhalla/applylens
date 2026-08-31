@@ -460,4 +460,5 @@ def test_prompt_includes_inputs_and_no_fabrication_rules() -> None:
     assert VALID_COMPANY in prompt
     assert VALID_ROLE in prompt
     assert "Do not invent" in prompt
+    assert "Use only the resume text, job description, company name, and role title" in prompt
     assert "cover_letter" in prompt

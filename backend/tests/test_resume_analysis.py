@@ -8,7 +8,7 @@ from app.api.deps import get_configured_ai_client
 from app.main import app
 from app.schemas.ai import RESUME_PDF_MAX_BYTES, ResumeAnalysisResult
 from app.services.ai_client import parse_structured_json
-from app.services.ai_errors import AIProviderError, AIResponseError
+from app.services.ai_errors import AIProviderError, AIResponseError, AITimeoutError
 from app.services.resume_analysis import build_resume_analysis_prompt
 
 SIGNUP_PATH = "/api/v1/auth/signup"
@@ -209,6 +209,54 @@ def test_resume_analysis_rejects_oversized_pdf(client: TestClient) -> None:
     assert response.status_code == 422
     assert response.json()["detail"] == "The resume PDF must be 5 MB or smaller."
     assert fake.calls == []
+
+
+def test_resume_analysis_rejects_corrupt_pdf(client: TestClient) -> None:
+    tokens = _signup(client)
+    fake = FakeAIClient(result=VALID_ANALYSIS)
+    _override_ai(fake)
+
+    response = _post_analysis(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(b"%PDF-not-a-real-document"),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "The uploaded file is not a valid PDF."
+    assert fake.calls == []
+
+
+def test_resume_analysis_rejects_whitespace_only_pdf(client: TestClient) -> None:
+    tokens = _signup(client)
+    fake = FakeAIClient(result=VALID_ANALYSIS)
+    _override_ai(fake)
+
+    response = _post_analysis(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(_make_pdf_bytes("   \n\t  ")),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "No extractable text was found in the PDF."
+    assert fake.calls == []
+
+
+def test_resume_analysis_timeout(client: TestClient) -> None:
+    tokens = _signup(client)
+    fake = FakeAIClient(error=AITimeoutError("The AI provider timed out."))
+    _override_ai(fake)
+
+    response = _post_analysis(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(_make_pdf_bytes(VALID_RESUME)),
+    )
+
+    assert response.status_code == 504
+    assert response.json()["detail"] == "The AI provider timed out."
+    assert TEST_API_KEY not in response.text
 
 
 def test_resume_analysis_rejects_pdf_with_no_extractable_text(client: TestClient) -> None:

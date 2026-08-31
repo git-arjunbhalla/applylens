@@ -25,6 +25,6 @@ Authentication, application tracking, standalone resume ATS analysis, job-descri
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Start the Vite development server |
-| `npm run build` | Production build |
+| `npm run build` | Production build (also used to verify the frontend for Stage 15) |
 | `npm run preview` | Preview the production build |
 | `npm test` | Run frontend tests |

@@ -231,4 +231,24 @@ describe('cover letter', () => {
 
     expect(await screen.findByText(/I am applying for the Backend Engineer role at Acme Labs/)).toBeInTheDocument()
   })
+
+  it('shows a safe 429 rate-limit message', async () => {
+    const user = userEvent.setup()
+    renderCoverLetter({
+      'post /api/v1/ai/cover-letter': () => ({
+        status: 429,
+        data: { detail: 'AI request limit exceeded. Please try again later.' },
+      }),
+    })
+
+    expect(await screen.findByRole('heading', { name: 'Cover letter' })).toBeInTheDocument()
+    await fillValidForm(user)
+    await user.click(screen.getByRole('button', { name: 'Generate Cover Letter' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'AI request limit exceeded. Please try again later.',
+    )
+    expect(screen.queryByText(/redis/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/I am applying for the Backend Engineer role/)).not.toBeInTheDocument()
+  })
 })

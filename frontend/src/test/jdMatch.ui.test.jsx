@@ -209,4 +209,24 @@ describe('job description match', () => {
 
     expect(await screen.findByText('78 / 100')).toBeInTheDocument()
   })
+
+  it('shows a safe 429 rate-limit message', async () => {
+    const user = userEvent.setup()
+    renderJdMatch({
+      'post /api/v1/ai/jd-match': () => ({
+        status: 429,
+        data: { detail: 'AI request limit exceeded. Please try again later.' },
+      }),
+    })
+
+    expect(await screen.findByRole('heading', { name: 'Job description match' })).toBeInTheDocument()
+    await fillValidMatchForm(user)
+    await user.click(screen.getByRole('button', { name: 'Match Resume' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'AI request limit exceeded. Please try again later.',
+    )
+    expect(screen.getByRole('alert').textContent.toLowerCase()).not.toContain('redis')
+    expect(screen.queryByText('78 / 100')).not.toBeInTheDocument()
+  })
 })

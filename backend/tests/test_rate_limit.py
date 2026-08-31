@@ -170,6 +170,17 @@ def test_requests_below_limit_are_allowed() -> None:
         assert decision.count == expected
 
 
+def test_request_exactly_at_limit_is_allowed() -> None:
+    import asyncio
+
+    backend = FakeRateLimitBackend()
+    limiter = AIRateLimiter(backend, max_requests=10, window_seconds=3600)
+    for expected in range(1, 11):
+        decision = asyncio.run(_hit(limiter, 5))
+        assert decision.allowed is True
+        assert decision.count == expected
+
+
 def test_request_exceeding_limit_is_denied() -> None:
     import asyncio
 
@@ -180,6 +191,36 @@ def test_request_exceeding_limit_is_denied() -> None:
     denied = asyncio.run(_hit(limiter, 3))
     assert denied.allowed is False
     assert denied.retry_after_seconds >= 1
+
+
+def test_new_window_resets_counter() -> None:
+    import asyncio
+
+    backend = FakeRateLimitBackend()
+    limiter = AIRateLimiter(backend, max_requests=2, window_seconds=3600)
+    now = 1_700_000_000.0
+    assert asyncio.run(limiter.hit(1, now=now)).allowed is True
+    assert asyncio.run(limiter.hit(1, now=now)).allowed is True
+    assert asyncio.run(limiter.hit(1, now=now)).allowed is False
+    next_window = asyncio.run(limiter.hit(1, now=now + 3600))
+    assert next_window.allowed is True
+    assert next_window.count == 1
+
+
+def test_fail_open_log_does_not_include_redis_url() -> None:
+    import asyncio
+    from unittest.mock import patch
+
+    backend = FakeRateLimitBackend(fail=True)
+    limiter = AIRateLimiter(backend, max_requests=1, window_seconds=3600)
+    with patch("app.services.rate_limit.logger.warning") as warning:
+        decision = asyncio.run(_hit(limiter, 1))
+    assert decision.allowed is True
+    warning.assert_called_once()
+    logged = " ".join(str(arg) for arg in warning.call_args[0])
+    assert "fail-open" in logged
+    assert "redis://" not in logged.lower()
+    assert "localhost:6379" not in logged
 
 
 def test_different_users_have_independent_limits() -> None:
@@ -353,6 +394,40 @@ def test_different_users_independent_http_quota(client: TestClient) -> None:
     assert first_b.status_code == 200
 
 
+def test_client_cannot_choose_another_users_rate_limit_key(client: TestClient) -> None:
+    backend = FakeRateLimitBackend()
+    limiter = AIRateLimiter(backend, max_requests=1, window_seconds=3600)
+    _override_limiter(limiter)
+    user_a = _signup(client, "a@example.com")
+    user_b = _signup(client, "b@example.com")
+    fake = FakeAIClient(result=VALID_ANALYSIS)
+    _override_ai(fake)
+
+    spoofed = client.post(
+        ANALYSIS_PATH,
+        headers=_auth_headers(user_a["access_token"]),
+        files=_pdf(),
+        data={"user_id": str(user_b["user"]["id"]), "redis_key": "ratelimit:ai:1:0"},
+    )
+    second_a = client.post(
+        ANALYSIS_PATH,
+        headers=_auth_headers(user_a["access_token"]),
+        files=_pdf(),
+        data={"user_id": str(user_b["user"]["id"])},
+    )
+    first_b = client.post(
+        ANALYSIS_PATH,
+        headers=_auth_headers(user_b["access_token"]),
+        files=_pdf(),
+    )
+
+    assert spoofed.status_code == 200
+    assert second_a.status_code == 429
+    assert first_b.status_code == 200
+    assert "redis" not in second_a.text.lower()
+    assert RATE_LIMIT_KEY_PREFIX not in second_a.text
+
+
 def test_rate_limit_requires_authentication(client: TestClient) -> None:
     fake = FakeAIClient(result=VALID_ANALYSIS)
     _override_ai(fake)
@@ -405,3 +480,6 @@ def test_http_fail_open_when_redis_backend_fails(client: TestClient) -> None:
     assert first.status_code == 200
     assert second.status_code == 200
     assert ResumeAnalysisResult.model_validate(first.json())
+    assert "redis" not in first.text.lower()
+    assert "localhost:6379" not in first.text
+    assert "ConnectionError" not in first.text

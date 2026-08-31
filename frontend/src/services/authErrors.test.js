@@ -44,4 +44,15 @@ describe('auth error helpers', () => {
     )
     expect(validatePassword('a'.repeat(73))).toBe('Password must be at most 72 characters.')
   })
+
+  it('surfaces 429 details without treating them as auth failures', () => {
+    expect(
+      getApiErrorMessage({
+        response: {
+          status: 429,
+          data: { detail: 'AI request limit exceeded. Please try again later.' },
+        },
+      }),
+    ).toBe('AI request limit exceeded. Please try again later.')
+  })
 })
