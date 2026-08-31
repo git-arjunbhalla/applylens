@@ -396,3 +396,29 @@ The workflow file has no API keys, JWT secrets, database passwords, Redis URLs, 
 
 `actions/setup-python` caches pip using `backend/requirements.txt`. `actions/setup-node` caches npm using `frontend/package-lock.json`. No extra cache actions or matrix strategies were added.
 
+## Stage 18 — AWS EC2 deployment preparation
+
+### Compose on one EC2 instance, not a new hosting split
+
+The original Stage 18 sketch in `BUILD_SPEC.md` named Vercel, Render, and Neon. ApplyLens already runs as one Compose stack (frontend, FastAPI, PostgreSQL, Redis). Deploying that stack to a single EC2 host in `ap-south-1` keeps the architecture, internal hostnames, and migration entrypoint unchanged. Kubernetes, ECS, EKS, Kafka, RDS, and ElastiCache were not added.
+
+### Local Compose stays local
+
+`docker-compose.yml` remains the development file (frontend `:8080`, backend `:8000`, development JWT default). Production uses `docker-compose.prod.yml`: `ENVIRONMENT=production`, required `JWT_SECRET` / Postgres password / CORS / public API URL, frontend published on host port 80, Postgres and Redis still unpublished.
+
+### Secrets live on the instance
+
+`.env.production.example` is a template. The filled `.env` is created on EC2 and is gitignored. Images still do not copy `.env`. Frontend build args remain only `VITE_API_BASE_URL`. Production settings reject the development JWT default and secrets shorter than 32 characters.
+
+### x86_64 `t3.micro` as the documented instance
+
+Official base images are multi-arch, but this stage verifies builds on amd64 (developer machine and GitHub Actions). `t3.micro` in `ap-south-1` matches common free-tier/credit constraints. ARM (`t4g.micro`) is documented as optional only when images are built on that host. Swap is recommended because 1 GiB RAM is tight for a Node image build.
+
+### HTTP and a public API port
+
+There is no load balancer or TLS certificate. The SPA still calls FastAPI at `http://<public-ip>:8000`, so security group ingress is SSH (your IP), 80, and 8000. 5432, 6379, and the Docker socket stay closed.
+
+### CI still does not deploy
+
+GitHub Actions validates both Compose files and builds local images. It does not launch EC2, store AWS keys, or call Gemini. This stage prepares and verifies the repository. A live AWS deployment is not claimed until it is actually launched and checked.
+

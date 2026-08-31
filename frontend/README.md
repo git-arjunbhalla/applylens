@@ -27,7 +27,7 @@ docker compose up -d --build
 
 The Compose frontend is `http://localhost:8080`. CORS on the backend must allow that origin (Compose sets `CORS_ORIGINS`).
 
-This is local infrastructure, not production or AWS deployment.
+On AWS EC2 the production Compose file publishes nginx on host port **80** and bakes `VITE_API_BASE_URL` as `http://<public-ip>:8000`. CORS on the backend must allow `http://<public-ip>`. Rebuild the frontend image if the public address changes. Details: `docs/aws-ec2-deployment.md`.
 
 ## Environment variables
 
@@ -44,4 +44,4 @@ This is local infrastructure, not production or AWS deployment.
 | `npm run preview` | Preview the production build |
 | `npm test` | Run frontend tests |
 
-GitHub Actions (`.github/workflows/ci.yml`) runs `npm ci`, `npm test`, and `npm run build` on pushes and pull requests to `main`. CI does not deploy.
+GitHub Actions (`.github/workflows/ci.yml`) runs `npm ci`, `npm test`, and `npm run build` on pushes and pull requests to `main`. CI does not deploy to AWS. The production browser bundle must contain only the public API origin, never `AI_API_KEY`, `JWT_SECRET`, `DATABASE_URL`, or `REDIS_URL`.

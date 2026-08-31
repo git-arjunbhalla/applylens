@@ -50,7 +50,7 @@ docker compose up -d --build
 
 The backend image runs `alembic upgrade head` on start, then uvicorn on `0.0.0.0:8000`. Healthcheck: `GET /health`. Redis is not persisted; it only stores AI rate-limit counters.
 
-This is local infrastructure, not production or AWS deployment.
+Local Compose is not the production file. On AWS EC2, use `docker-compose.prod.yml` from the repository root (see `docs/aws-ec2-deployment.md`). `DATABASE_URL` and `REDIS_URL` still use hostnames `postgres` and `redis`. Postgres and Redis ports stay unpublished. Production sets `ENVIRONMENT=production` and requires a unique `JWT_SECRET` (at least 32 characters).
 
 ## Health check
 
@@ -90,14 +90,14 @@ pytest
 
 The default suite uses an in-memory SQLite database, a fake Redis rate-limit backend, and a mocked AI client. It does not require PostgreSQL, Redis, or a Gemini API key. Ownership, authentication, PDF validation, and AI failure mapping are covered in `backend/tests/`.
 
-GitHub Actions (`.github/workflows/ci.yml`) runs this same `pytest` command on pushes and pull requests to `main`. CI does not deploy.
+GitHub Actions (`.github/workflows/ci.yml`) runs this same `pytest` command on pushes and pull requests to `main`. CI does not deploy to AWS and does not call Gemini.
 
 ## Environment variables
 
 | Variable | Purpose |
 | --- | --- |
 | `APP_NAME` | API title |
-| `ENVIRONMENT` | `development` or `production` |
+| `ENVIRONMENT` | `development`, `test`, or `production` (production rejects the default JWT secret) |
 | `DEBUG` | Enables SQLAlchemy echo logging when true |
 | `DATABASE_URL` | Async PostgreSQL URL (`postgresql+asyncpg://...`) |
 | `CORS_ORIGINS` | Comma-separated allowed frontend origins |

@@ -1,7 +1,9 @@
 from functools import lru_cache
 
-from pydantic import SecretStr
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+DEV_JWT_SECRET = "dev-only-change-me-use-32-plus-bytes"
 
 
 class Settings(BaseSettings):
@@ -25,7 +27,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
 
     # JWT signing secret. Override this in every real environment.
-    jwt_secret: str = "dev-only-change-me-use-32-plus-bytes"
+    jwt_secret: str = DEV_JWT_SECRET
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 15
     jwt_refresh_token_expire_days: int = 7
@@ -41,6 +43,17 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     ai_rate_limit_requests: int = 10
     ai_rate_limit_window_seconds: int = 3600
+
+    @model_validator(mode="after")
+    def reject_insecure_production_secrets(self) -> "Settings":
+        if self.environment.lower() != "production":
+            return self
+        secret = self.jwt_secret.strip()
+        if secret == DEV_JWT_SECRET or len(secret) < 32:
+            raise ValueError(
+                "JWT_SECRET must be a unique value of at least 32 characters in production."
+            )
+        return self
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -1,5 +1,5 @@
 # Continuous integration for ApplyLens.
-# Runs tests and Docker image builds. Does not deploy (Stage 18).
+# Runs tests and Docker image builds. Does not deploy to AWS.
 name: CI
 
 on:
@@ -74,8 +74,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate Compose file
-        run: docker compose config
+      - name: Validate Compose files
+        run: |
+          docker compose config
+          docker compose --env-file .env.production.example -f docker-compose.prod.yml config
 
       - name: Build backend and frontend images
         run: docker compose build
