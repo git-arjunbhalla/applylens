@@ -10,6 +10,11 @@ from app.models.user import User
 from app.services.ai_client import AIClient, get_ai_client
 from app.services.ai_errors import AIError
 from app.services.auth import get_user_by_id
+from app.services.rate_limit import (
+    AI_RATE_LIMIT_DETAIL,
+    AIRateLimiter,
+    get_ai_rate_limiter,
+)
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -42,6 +47,24 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+
+async def enforce_ai_rate_limit(
+    current_user: Annotated[User, Depends(get_current_user)],
+    limiter: Annotated[AIRateLimiter, Depends(get_ai_rate_limiter)],
+) -> User:
+    """Consume one AI quota unit for the authenticated user. Runs after auth."""
+    decision = await limiter.hit(current_user.id)
+    if not decision.allowed:
+        headers: dict[str, str] = {}
+        if decision.retry_after_seconds > 0:
+            headers["Retry-After"] = str(decision.retry_after_seconds)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=AI_RATE_LIMIT_DETAIL,
+            headers=headers,
+        )
+    return current_user
 
 
 def get_configured_ai_client() -> AIClient:

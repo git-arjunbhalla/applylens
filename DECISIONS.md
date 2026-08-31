@@ -301,3 +301,39 @@ The prompt forbids inventing employment history, skills, projects, achievements,
 ### Dedicated `/cover-letter` page
 
 The protected form posts FormData (PDF + company + role + JD). Results show the letter as readable text with a Copy button (`navigator.clipboard`). The page does not call Gemini and has no `VITE_*` AI variables.
+
+## Stage 14 — AI rate limiting
+
+### Why Redis was added
+
+AI endpoints call Gemini and incur provider cost. A per-user limit protects the service from abuse and unbounded spend. Redis holds shared counters so limits stay consistent across uvicorn workers and process restarts. A purely in-memory dict would reset on restart and would not be shared between processes.
+
+### Redis is not the primary database
+
+PostgreSQL remains the source of truth for users, applications, and interviews. Redis stores only ephemeral integer counters. Keys expire automatically. No resume text, job descriptions, emails, tokens, or AI outputs are stored in Redis.
+
+### Rate-limit policy
+
+Authenticated AI routes share one quota per user:
+
+- 10 AI requests per user per hour (`AI_RATE_LIMIT_REQUESTS` / `AI_RATE_LIMIT_WINDOW_SECONDS`)
+- Resume analysis, JD match, and cover letter all consume the same counter
+- Limits are per authenticated `user.id` from the JWT, not a global bucket
+
+Unauthenticated requests never reach the limiter (401 first).
+
+### Key strategy and TTL
+
+Fixed window. Key shape:
+
+`ratelimit:ai:{user_id}:{window}`
+
+`window` is `floor(unix_time / window_seconds)`. TTL is the remaining seconds in that window (at least 1). Redis `INCR` and `EXPIRE` run in a Lua script so concurrent requests cannot skip the TTL on a new key.
+
+### Fail-open
+
+If Redis is missing, misconfigured, or unreachable, the limiter logs a warning and allows the AI request. Redis is a cost-control dependency; PostgreSQL and the AI client still run. Redis errors are not returned to clients. Unexpected application errors are not swallowed.
+
+### Limitations of the simple limiter
+
+A fixed window can allow a burst at the window boundary (up to 2× the limit across two adjacent hours). Fail-open means an attacker can bypass the quota while Redis is down. There is no request-body deduplication cache in this stage; input-size limits, provider timeouts, and error mapping remain those from Stages 10–13. The frontend reuses existing API error display for HTTP 429.

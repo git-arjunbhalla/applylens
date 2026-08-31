@@ -5,7 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
 from app.api.ai_http import http_exception_from_ai_error
-from app.api.deps import get_configured_ai_client, get_current_user
+from app.api.deps import enforce_ai_rate_limit, get_configured_ai_client
 from app.models.user import User
 from app.schemas.ai import (
     CoverLetterRequest,
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/ai", tags=["ai"])
 @router.post("/resume-analysis", response_model=ResumeAnalysisResult)
 async def create_resume_analysis(
     resume: Annotated[UploadFile, File()],
-    _current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(enforce_ai_rate_limit)],
     client: Annotated[AIClient, Depends(get_configured_ai_client)],
 ) -> ResumeAnalysisResult:
     resume_text = await extract_resume_text_from_upload(resume)
@@ -41,7 +41,7 @@ async def create_resume_analysis(
 async def create_jd_match(
     resume: Annotated[UploadFile, File()],
     job_description: Annotated[str, Form()],
-    _current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(enforce_ai_rate_limit)],
     client: Annotated[AIClient, Depends(get_configured_ai_client)],
 ) -> JDMatchResult:
     try:
@@ -65,7 +65,7 @@ async def create_cover_letter(
     job_description: Annotated[str, Form()],
     company: Annotated[str, Form()],
     role: Annotated[str, Form()],
-    _current_user: Annotated[User, Depends(get_current_user)],
+    _current_user: Annotated[User, Depends(enforce_ai_rate_limit)],
     client: Annotated[AIClient, Depends(get_configured_ai_client)],
 ) -> CoverLetterResult:
     try:

@@ -90,8 +90,19 @@ pytest
 | `AI_API_KEY` | Gemini API key (backend only; never expose to the frontend) |
 | `AI_MODEL` | Gemini model name (default `gemini-3.6-flash`) |
 | `AI_TIMEOUT_SECONDS` | Provider request timeout in seconds |
+| `REDIS_URL` | Redis connection URL for AI rate-limit counters only |
+| `AI_RATE_LIMIT_REQUESTS` | Max AI requests per user per window (default 10) |
+| `AI_RATE_LIMIT_WINDOW_SECONDS` | Rate-limit window in seconds (default 3600) |
 
 AI calls are made only from FastAPI through `app.services.ai_client`. React must not call Gemini and must not receive `AI_API_KEY`.
+
+Authenticated AI endpoints (`/ai/resume-analysis`, `/ai/jd-match`, `/ai/cover-letter`) share one per-user quota: **10 requests per hour**, stored in Redis as `ratelimit:ai:{user_id}:{window}` with a TTL for the remainder of the hour. Exceeding the quota returns HTTP 429. If Redis is down, the limiter fails open (the request proceeds) and the failure is logged without exposing Redis details. PostgreSQL remains the source of truth.
+
+Local Redis (optional for development; required for the limiter to enforce quotas):
+
+```powershell
+docker run --name applylens-redis -p 6379:6379 -d redis:7-alpine
+```
 
 Resume analysis: `POST /api/v1/ai/resume-analysis` (authenticated, `multipart/form-data`). Upload a resume PDF as `resume`. The backend extracts text in memory and returns a standalone ATS/resume-quality result (`ats_score`, `score_breakdown`, strengths, issues, suggestions). No job description is accepted. The PDF is not stored.
 
