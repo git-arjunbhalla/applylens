@@ -222,7 +222,7 @@ Buttons, fields, cards, alerts, page chrome, and the brand mark are small local 
 
 ### Gemini as the first provider via `google-genai`
 
-The current SDK is `google-genai` (`google.genai.Client`), not the older `google-generativeai` package. The default model is `gemini-2.5-flash`, overridable with `AI_MODEL`. Request timeout is set through `HttpOptions.timeout` (milliseconds) from `AI_TIMEOUT_SECONDS`.
+The current SDK is `google-genai` (`google.genai.Client`), not the older `google-generativeai` package. The default model is `gemini-3.6-flash`, overridable with `AI_MODEL`. `gemini-2.5-flash` returns 404 for new Gemini API keys. Request timeout is set through `HttpOptions.timeout` (milliseconds) from `AI_TIMEOUT_SECONDS`.
 
 ### Configuration stays in Pydantic Settings
 
@@ -250,39 +250,31 @@ The SDK client is synchronous. There are no AI endpoints yet. Later async route 
 
 ## Stage 11 — AI resume analysis
 
-### Resume and job description are request-only
+### Standalone ATS quality, not JD matching
 
-`POST /api/v1/ai/resume-analysis` accepts resume and JD text and does not persist them. Application records already store a job description field; this endpoint is a comparison tool, not a document store. That avoids writing untrusted resume text into PostgreSQL until a later stage needs it.
+`POST /api/v1/ai/resume-analysis` evaluates a resume by itself. It does not accept a job description. Resume-to-JD comparison belongs to Stage 12 `/ai/jd-match`.
 
-### Structured output is validated twice
+### PDF upload, request-only
 
-The prompt asks for JSON matching `ResumeAnalysisResult`. `generate_json()` validates that schema. Incomplete or extra-only responses are rejected as `AIResponseError` rather than filling missing lists or inventing a score. Empty lists are allowed when the texts do not support an item.
+The endpoint accepts `multipart/form-data` with a `resume` PDF. Text is extracted in memory with the shared Stage 12 PDF helpers and is not stored. Invalid, empty, oversized, or textless PDFs are rejected with 422 before the AI client runs.
 
-### Match score is an integer 0–100
+### Structured ATS output
 
-The spec names `match_score` without a range. An integer from 0 to 100 is bounded, easy to display, and mapped in the prompt. Values outside that range fail schema validation and become a 502 instead of being clamped.
-
-### Field names follow BUILD_SPEC
-
-The API uses `matching_skills` (not `matched_skills`) plus `missing_skills`, `strengths`, `weaknesses`, and `recommendations`.
-
-### AI errors stay generic at the HTTP boundary
-
-Configuration problems are 503, timeouts 504, and provider/parse/schema failures 502. Messages are fixed strings so provider exceptions and keys never appear in API responses. Extra JSON fields from the model are dropped by the response schema.
-
-### Async routes call the sync client in a thread
-
-The handler stays thin. `analyze_resume` builds the prompt and calls `client.generate_json` through `asyncio.to_thread`, matching the Stage 10 note.
+`ResumeAnalysisResult` includes `ats_score` (0–100), a five-part `score_breakdown`, strengths, issues, missing sections, detected skills, keyword and improvement suggestions, rewrite suggestions, and a summary. Incomplete provider JSON is rejected as `AIResponseError` (502). The prompt forbids hiring predictions and claims about a specific company's ATS.
 
 ### Dedicated Analyze page
 
-The UI is a protected `/analyze` form with two text areas. Results are rendered as text lists, never as HTML. The page does not call Gemini and has no `VITE_*` AI variables. Per-user rate limits and stricter input-size policy are left to Stage 14.
+The UI is a protected `/analyze` form titled Resume Analyzer with a PDF upload. Results emphasize the ATS score and breakdown cards, not keyword-match badges. The page does not call Gemini and has no `VITE_*` AI variables.
 
 ## Stage 12 — AI job description match
 
 ### Same request-only pattern as resume analysis
 
-`POST /api/v1/ai/jd-match` accepts resume and JD text and does not persist them. It reuses Stage 10 `AIClient.generate_json`, the same auth dependency, input size limit (50,000 characters), and HTTP error mapping as Stage 11.
+`POST /api/v1/ai/jd-match` accepts a resume PDF plus JD text and does not persist either. The backend extracts PDF text in memory with PyMuPDF, then reuses Stage 10 `AIClient.generate_json`, the same auth dependency, extracted-text size limit (50,000 characters), and HTTP error mapping as Stage 11.
+
+### PDF resumes, not pasted resume text
+
+The frontend sends `multipart/form-data` (`resume` file + `job_description`). React never reads the PDF into a prompt and never calls Gemini. Invalid, empty, oversized (over 5 MB), or textless PDFs are rejected with 422 before the AI client runs. Uploaded bytes are discarded after extraction.
 
 ### Keyword overlap, not a second resume analysis
 
@@ -290,4 +282,8 @@ The prompt asks for `matched_keywords`, `missing_keywords`, `relevant_skills`, `
 
 ### Dedicated `/jd-match` page
 
-The UI is a protected form that posts through the existing Axios client. Keyword lists use badges; requirements stay as a text list. React does not call Gemini. Cover-letter generation remains Stage 13.
+The UI is a protected form with a PDF file input and a job-description textarea. It posts FormData through the existing Axios client without setting a multipart Content-Type (so the boundary stays intact). Keyword lists use badges; requirements stay as a text list. Cover-letter generation remains Stage 13.
+
+### Analyze vs JD Match
+
+Analyze (`/analyze`, `POST /api/v1/ai/resume-analysis`) is a standalone ATS/resume-quality review of one PDF. JD Match (`/jd-match`, `POST /api/v1/ai/jd-match`) compares a resume PDF to a pasted job description and returns keyword overlap. They share PDF extraction and the Stage 10 AI client; they do not share prompts, response schemas, or result layouts.

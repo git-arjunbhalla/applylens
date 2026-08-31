@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it } from 'vitest'
 import App from '../App'
+import { RESUME_PDF_MAX_BYTES } from '../services/ai'
 import { installApiMock, sampleUser, tokenPayload } from './mockApi'
 
 const sampleMatch = {
@@ -15,6 +16,10 @@ const sampleMatch = {
     'PostgreSQL experience',
   ],
   match_score: 78,
+}
+
+function pdfFile(name = 'resume.pdf') {
+  return new File(['%PDF-1.4 resume'], name, { type: 'application/pdf' })
 }
 
 function renderJdMatch(extraHandlers = {}) {
@@ -32,33 +37,87 @@ function renderJdMatch(extraHandlers = {}) {
   return mock
 }
 
+async function fillValidMatchForm(user) {
+  await user.upload(screen.getByLabelText('Resume'), pdfFile())
+  await user.type(screen.getByLabelText('Job description'), 'Need Python, FastAPI, Docker, and Redis.')
+}
+
 describe('job description match', () => {
   beforeEach(() => {
     window.localStorage.clear()
   })
 
-  it('shows an empty state before matching', async () => {
+  it('shows an empty state and a PDF upload control', async () => {
     renderJdMatch()
 
     expect(await screen.findByRole('heading', { name: 'Job description match' })).toBeInTheDocument()
     expect(screen.getByText('No match yet')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'JD match' })).toBeInTheDocument()
+
+    const resumeInput = screen.getByLabelText('Resume')
+    expect(resumeInput).toHaveAttribute('type', 'file')
+    expect(resumeInput).toHaveAttribute('accept', 'application/pdf')
+    expect(screen.getByText('Choose a PDF resume.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Job description')).toBeInTheDocument()
   })
 
-  it('validates empty resume and job description before calling the API', async () => {
+  it('validates missing PDF and job description before calling the API', async () => {
     const user = userEvent.setup()
     const { requests } = renderJdMatch()
 
     expect(await screen.findByRole('heading', { name: 'Job description match' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Match keywords' }))
+    await user.click(screen.getByRole('button', { name: 'Match Resume' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Resume and job description are required.',
+      'Upload a resume PDF and enter a job description.',
     )
     expect(requests.some((request) => request.path === '/api/v1/ai/jd-match')).toBe(false)
   })
 
-  it('submits resume and job description and displays structured results', async () => {
+  it('rejects a non-PDF file before calling the API', async () => {
+    const user = userEvent.setup()
+    const { requests } = renderJdMatch()
+
+    expect(await screen.findByRole('heading', { name: 'Job description match' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Resume'), {
+      target: { files: [new File(['plain resume'], 'resume.txt', { type: 'text/plain' })] },
+    })
+    await user.type(screen.getByLabelText('Job description'), 'Need a backend engineer.')
+    await user.click(screen.getByRole('button', { name: 'Match Resume' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The resume must be a PDF file.')
+    expect(requests.some((request) => request.path === '/api/v1/ai/jd-match')).toBe(false)
+  })
+
+  it('rejects an oversized PDF before calling the API', async () => {
+    const user = userEvent.setup()
+    const { requests } = renderJdMatch()
+    const oversized = new File(['x'.repeat(RESUME_PDF_MAX_BYTES + 1)], 'resume.pdf', {
+      type: 'application/pdf',
+    })
+
+    expect(await screen.findByRole('heading', { name: 'Job description match' })).toBeInTheDocument()
+    await user.upload(screen.getByLabelText('Resume'), oversized)
+    await user.type(screen.getByLabelText('Job description'), 'Need a backend engineer.')
+    await user.click(screen.getByRole('button', { name: 'Match Resume' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The resume PDF must be 5 MB or smaller.',
+    )
+    expect(requests.some((request) => request.path === '/api/v1/ai/jd-match')).toBe(false)
+  })
+
+  it('shows the selected PDF filename', async () => {
+    const user = userEvent.setup()
+    renderJdMatch()
+
+    expect(await screen.findByRole('heading', { name: 'Job description match' })).toBeInTheDocument()
+    await user.upload(screen.getByLabelText('Resume'), pdfFile('my-resume.pdf'))
+
+    expect(screen.getByText('Selected file: my-resume.pdf')).toBeInTheDocument()
+  })
+
+  it('submits the PDF and job description as FormData and displays results', async () => {
     const user = userEvent.setup()
     const { requests } = renderJdMatch({
       'post /api/v1/ai/jd-match': () => ({
@@ -68,9 +127,8 @@ describe('job description match', () => {
     })
 
     expect(await screen.findByRole('heading', { name: 'Job description match' })).toBeInTheDocument()
-    await user.type(screen.getByLabelText('Resume'), 'Python developer with FastAPI.')
-    await user.type(screen.getByLabelText('Job description'), 'Need Python, FastAPI, Docker, and Redis.')
-    await user.click(screen.getByRole('button', { name: 'Match keywords' }))
+    await fillValidMatchForm(user)
+    await user.click(screen.getByRole('button', { name: 'Match Resume' }))
 
     expect(await screen.findByText('78 / 100')).toBeInTheDocument()
     expect(screen.getAllByText('Python').length).toBeGreaterThan(0)
@@ -86,10 +144,14 @@ describe('job description match', () => {
     const matchRequest = requests.find((request) => request.path === '/api/v1/ai/jd-match')
     expect(matchRequest).toBeTruthy()
     expect(matchRequest.method).toBe('post')
-    expect(matchRequest.data).toEqual({
-      resume_text: 'Python developer with FastAPI.',
-      job_description: 'Need Python, FastAPI, Docker, and Redis.',
-    })
+    expect(matchRequest.data).toBeInstanceOf(FormData)
+    expect(matchRequest.data.get('job_description')).toBe(
+      'Need Python, FastAPI, Docker, and Redis.',
+    )
+    const uploaded = matchRequest.data.get('resume')
+    expect(uploaded).toBeInstanceOf(File)
+    expect(uploaded.name).toBe('resume.pdf')
+    expect(uploaded.type).toBe('application/pdf')
   })
 
   it('shows a loading state while the match request is in flight', async () => {
@@ -107,9 +169,9 @@ describe('job description match', () => {
     })
 
     expect(await screen.findByRole('heading', { name: 'Job description match' })).toBeInTheDocument()
-    await user.type(screen.getByLabelText('Resume'), 'Resume text')
+    await user.upload(screen.getByLabelText('Resume'), pdfFile())
     await user.type(screen.getByLabelText('Job description'), 'Job text')
-    await user.click(screen.getByRole('button', { name: 'Match keywords' }))
+    await user.click(screen.getByRole('button', { name: 'Match Resume' }))
 
     expect(await screen.findByText('Matching resume and job description…')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Matching…' })).toBeDisabled()
@@ -136,9 +198,9 @@ describe('job description match', () => {
     })
 
     expect(await screen.findByRole('heading', { name: 'Job description match' })).toBeInTheDocument()
-    await user.type(screen.getByLabelText('Resume'), 'Resume text')
+    await user.upload(screen.getByLabelText('Resume'), pdfFile())
     await user.type(screen.getByLabelText('Job description'), 'Job text')
-    await user.click(screen.getByRole('button', { name: 'Match keywords' }))
+    await user.click(screen.getByRole('button', { name: 'Match Resume' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('The AI provider request failed.')
     expect(screen.queryByText('78 / 100')).not.toBeInTheDocument()

@@ -7,7 +7,7 @@ import ErrorState from '../components/ErrorState'
 import Field, { inputClass } from '../components/Field'
 import LoadingState from '../components/LoadingState'
 import Page, { PageHeader } from '../components/Page'
-import { matchJobDescription } from '../services/ai'
+import { RESUME_PDF_MAX_BYTES, matchJobDescription } from '../services/ai'
 import { getApiErrorMessage } from '../services/authErrors'
 
 function KeywordList({ title, items, emptyLabel, tone = 'matched' }) {
@@ -51,19 +51,36 @@ function RequirementList({ items }) {
   )
 }
 
+function isPdfFile(file) {
+  return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+}
+
 function JDMatchPage() {
-  const [resumeText, setResumeText] = useState('')
+  const [resumeFile, setResumeFile] = useState(null)
   const [jobDescription, setJobDescription] = useState('')
   const [formError, setFormError] = useState('')
   const [result, setResult] = useState(null)
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
 
+  function handleResumeChange(event) {
+    const file = event.target.files?.[0] ?? null
+    setResumeFile(file)
+    setFormError('')
+  }
+
   async function runMatch() {
-    const resume = resumeText.trim()
     const job = jobDescription.trim()
-    if (!resume || !job) {
-      setFormError('Resume and job description are required.')
+    if (!resumeFile || !job) {
+      setFormError('Upload a resume PDF and enter a job description.')
+      return
+    }
+    if (!isPdfFile(resumeFile)) {
+      setFormError('The resume must be a PDF file.')
+      return
+    }
+    if (resumeFile.size > RESUME_PDF_MAX_BYTES) {
+      setFormError('The resume PDF must be 5 MB or smaller.')
       return
     }
 
@@ -72,7 +89,7 @@ function JDMatchPage() {
     setStatus('loading')
     try {
       const match = await matchJobDescription({
-        resume_text: resume,
+        resume: resumeFile,
         job_description: job,
       })
       setResult(match)
@@ -93,22 +110,27 @@ function JDMatchPage() {
     <Page>
       <PageHeader
         title="Job description match"
-        description="Compare resume keywords to a job description. Results use only the text you provide."
+        description="Upload a resume PDF and compare its keywords to a job description. The PDF is read on the server and is not stored."
       />
 
       <Card className="mt-8 p-4 sm:p-6">
         <form className="space-y-4" onSubmit={handleSubmit} noValidate>
           {formError ? <Alert>{formError}</Alert> : null}
 
-          <Field label="Resume">
-            <textarea
-              className={inputClass}
-              name="resume_text"
-              rows={10}
-              value={resumeText}
-              onChange={(event) => setResumeText(event.target.value)}
-            />
-          </Field>
+          <div>
+            <Field label="Resume">
+              <input
+                className={inputClass}
+                type="file"
+                name="resume"
+                accept="application/pdf"
+                onChange={handleResumeChange}
+              />
+            </Field>
+            <p className="mt-2 text-sm text-muted">
+              {resumeFile ? `Selected file: ${resumeFile.name}` : 'Choose a PDF resume.'}
+            </p>
+          </div>
 
           <Field label="Job description">
             <textarea
@@ -121,7 +143,7 @@ function JDMatchPage() {
           </Field>
 
           <Button type="submit" disabled={status === 'loading'}>
-            {status === 'loading' ? 'Matching…' : 'Match keywords'}
+            {status === 'loading' ? 'Matching…' : 'Match Resume'}
           </Button>
         </form>
       </Card>
@@ -130,7 +152,7 @@ function JDMatchPage() {
         {status === 'idle' ? (
           <EmptyState
             title="No match yet"
-            message="Paste a resume and job description, then run the keyword comparison."
+            message="Upload a resume PDF and paste a job description, then run the keyword comparison."
           />
         ) : null}
 
