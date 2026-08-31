@@ -14,7 +14,7 @@ SQLAlchemy
 PostgreSQL
 ```
 
-Stages 1–16 cover the project foundation, database, authentication, application tracking, interviews, analytics, UI, the AI provider abstraction, standalone resume ATS analysis, resume-to-job-description matching, AI cover-letter drafts, Redis-backed per-user AI rate limiting, a testing/security review, and local Docker Compose infrastructure. Later stages add CI/CD and deployment. This Docker setup is for local infrastructure only; it is not an AWS or production deployment.
+Stages 1–17 cover the project foundation, database, authentication, application tracking, interviews, analytics, UI, the AI provider abstraction, standalone resume ATS analysis, resume-to-job-description matching, AI cover-letter drafts, Redis-backed per-user AI rate limiting, a testing/security review, local Docker Compose infrastructure, and GitHub Actions CI. Stage 18 will handle deployment. This Docker setup is for local infrastructure only; it is not an AWS or production deployment. CI validates the repository; it does not deploy.
 
 ## Local setup
 
@@ -72,6 +72,20 @@ docker compose down -v
 ```
 
 `down -v` deletes the Postgres volume. The backend container runs `alembic upgrade head` on start. Put a Gemini key in the root `.env` as `AI_API_KEY` only if you need live AI calls; never put it in frontend env files.
+
+## Continuous integration
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on pushes to `main` and on pull requests targeting `main`. A change is ready when all three jobs pass:
+
+| Job | What it checks |
+| --- | --- |
+| Backend tests | Installs Python 3.12 dependencies and runs `pytest` |
+| Frontend tests | `npm ci`, Vitest (`npm test`), and the Vite production build |
+| Docker build | `docker compose config`, then `docker compose build` for the backend and frontend images |
+
+CI uses in-memory SQLite, a fake AI client, and a fake Redis rate-limit backend. It does not call Gemini, does not need AWS credentials, and does not start the Compose stack. Secrets such as `AI_API_KEY` and `JWT_SECRET` are not stored in the workflow.
+
+This pipeline validates and builds the application. It does not deploy. AWS and other production hosting are out of scope until Stage 18.
 
 ## Documentation
 

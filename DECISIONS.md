@@ -378,3 +378,21 @@ The backend image runs `alembic upgrade head` before uvicorn so an empty Compose
 
 The Redis service disables RDB/AOF. ApplyLens still uses Redis only for per-user AI counters from Stage 14. PostgreSQL remains the source of truth.
 
+## Stage 17 — CI (GitHub Actions)
+
+### Test pipeline, not a deploy pipeline
+
+Stage 17 adds `.github/workflows/ci.yml` so every push and pull request to `main` runs backend tests, frontend tests plus a production build, and Docker image builds. GitHub Actions is the only CI system. There is no AWS, Render, Vercel, or other deploy step. Deployment remains Stage 18.
+
+### Three jobs, no live dependencies
+
+Jobs run in parallel on `ubuntu-latest`. Backend CI uses Python 3.12 to match the Dockerfile, installs `requirements.txt`, and runs pytest. Frontend CI uses Node 22, `npm ci` against `package-lock.json`, Vitest, and `vite build`. Docker CI runs `docker compose config` then `docker compose build`; it does not `up` Postgres, Redis, or the API, so CI never needs a Gemini key or AWS credentials.
+
+### Secrets stay out of the workflow
+
+The workflow file has no API keys, JWT secrets, database passwords, Redis URLs, or AWS credentials. Tests rely on application defaults plus the existing fakes (`FakeAIClient`, `FakeRateLimitBackend`, in-memory SQLite). `APPLYLENS_LIVE_GEMINI` is not set, so the optional live Gemini test stays skipped.
+
+### Caching without extra tooling
+
+`actions/setup-python` caches pip using `backend/requirements.txt`. `actions/setup-node` caches npm using `frontend/package-lock.json`. No extra cache actions or matrix strategies were added.
+

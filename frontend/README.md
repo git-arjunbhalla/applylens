@@ -43,3 +43,5 @@ This is local infrastructure, not production or AWS deployment.
 | `npm run build` | Production build (also used to verify the frontend for Stage 15) |
 | `npm run preview` | Preview the production build |
 | `npm test` | Run frontend tests |
+
+GitHub Actions (`.github/workflows/ci.yml`) runs `npm ci`, `npm test`, and `npm run build` on pushes and pull requests to `main`. CI does not deploy.

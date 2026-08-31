@@ -90,6 +90,8 @@ pytest
 
 The default suite uses an in-memory SQLite database, a fake Redis rate-limit backend, and a mocked AI client. It does not require PostgreSQL, Redis, or a Gemini API key. Ownership, authentication, PDF validation, and AI failure mapping are covered in `backend/tests/`.
 
+GitHub Actions (`.github/workflows/ci.yml`) runs this same `pytest` command on pushes and pull requests to `main`. CI does not deploy.
+
 ## Environment variables
 
 | Variable | Purpose |

@@ -1,0 +1,84 @@
+# Continuous integration for ApplyLens.
+# Runs tests and Docker image builds. Does not deploy (Stage 18).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pytest
+        run: python -m pytest
+        env:
+          # Tests use in-memory SQLite, FakeAIClient, and FakeRateLimitBackend.
+          # Do not set AI_API_KEY or APPLYLENS_LIVE_GEMINI.
+          ENVIRONMENT: test
+
+  frontend-tests:
+    name: Frontend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Vitest
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: http://localhost:8000
+
+  docker-build:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Compose file
+        run: docker compose config
+
+      - name: Build backend and frontend images
+        run: docker compose build
+        env:
+          # Public build-time API origin for the frontend image only.
+          VITE_API_BASE_URL: http://localhost:8000
