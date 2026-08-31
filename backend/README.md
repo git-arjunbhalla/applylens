@@ -97,6 +97,8 @@ Resume analysis: `POST /api/v1/ai/resume-analysis` (authenticated, `multipart/fo
 
 Job description match: `POST /api/v1/ai/jd-match` (authenticated, `multipart/form-data`). Upload a resume PDF as `resume` and the job text as `job_description`. The backend extracts PDF text in memory with PyMuPDF (limit 5 MB) and returns keyword overlap (`matched_keywords`, `missing_keywords`, `relevant_skills`, `important_requirements`, `match_score`). The PDF and extracted text are not stored.
 
+Cover letter: `POST /api/v1/ai/cover-letter` (authenticated, `multipart/form-data`). Upload a resume PDF as `resume` plus `job_description`, `company`, and `role`. The backend reuses the same in-memory PDF extraction and returns `{ "cover_letter": "..." }`. The letter is a draft grounded only in the supplied resume and job description; it is not stored.
+
 Optional live check (not part of the default test suite):
 
 ```powershell

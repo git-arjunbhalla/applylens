@@ -42,6 +42,9 @@ function AppLayout() {
               <NavLink to="/jd-match" className={navClass} onClick={() => setMenuOpen(false)}>
                 JD match
               </NavLink>
+              <NavLink to="/cover-letter" className={navClass} onClick={() => setMenuOpen(false)}>
+                Cover letter
+              </NavLink>
             </nav>
           </div>
           <div className="flex items-center gap-2">
@@ -77,6 +80,9 @@ function AppLayout() {
               </NavLink>
               <NavLink to="/jd-match" className={navClass} onClick={() => setMenuOpen(false)}>
                 JD match
+              </NavLink>
+              <NavLink to="/cover-letter" className={navClass} onClick={() => setMenuOpen(false)}>
+                Cover letter
               </NavLink>
             </div>
           </nav>

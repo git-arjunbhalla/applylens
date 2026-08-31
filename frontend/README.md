@@ -12,7 +12,7 @@ npm run dev
 
 The app will be available at `http://localhost:5173`.
 
-Authentication, application tracking, standalone resume ATS analysis, and job-description matching are implemented. Analyze and JD Match both call FastAPI only; the Gemini key is never sent to the browser.
+Authentication, application tracking, standalone resume ATS analysis, job-description matching, and AI cover-letter drafts are implemented. Analyze, JD Match, and Cover letter all call FastAPI only; the Gemini key is never sent to the browser.
 
 ## Environment variables
 

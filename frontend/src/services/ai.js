@@ -28,3 +28,19 @@ export async function matchJobDescription(payload, config = {}) {
   })
   return data
 }
+
+export async function generateCoverLetter(payload, config = {}) {
+  const formData = new FormData()
+  formData.append('resume', payload.resume)
+  formData.append('job_description', payload.job_description)
+  formData.append('company', payload.company)
+  formData.append('role', payload.role)
+  const { data } = await api.post('/api/v1/ai/cover-letter', formData, {
+    ...config,
+    headers: {
+      ...config.headers,
+      'Content-Type': undefined,
+    },
+  })
+  return data
+}

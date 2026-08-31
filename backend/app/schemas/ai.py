@@ -100,3 +100,25 @@ class JDMatchResult(BaseModel):
     @classmethod
     def strip_list_items(cls, values: list[str]) -> list[str]:
         return _clean_string_list(values)
+
+
+class CoverLetterRequest(BaseModel):
+    job_description: str = Field(min_length=1, max_length=RESUME_ANALYSIS_TEXT_MAX_LENGTH)
+    company: str = Field(min_length=1, max_length=255)
+    role: str = Field(min_length=1, max_length=255)
+
+    @field_validator("job_description", "company", "role")
+    @classmethod
+    def strip_required_text(cls, value: str) -> str:
+        return _strip_required_text(value)
+
+
+class CoverLetterResult(BaseModel):
+    """Cover letter draft. Incomplete or blank provider JSON is rejected."""
+
+    cover_letter: str = Field(min_length=1)
+
+    @field_validator("cover_letter")
+    @classmethod
+    def strip_cover_letter(cls, value: str) -> str:
+        return _strip_required_text(value)

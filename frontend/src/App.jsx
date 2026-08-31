@@ -10,6 +10,7 @@ import ApplicationEditPage from './pages/ApplicationEditPage'
 import ApplicationsPage from './pages/ApplicationsPage'
 import DashboardPage from './pages/DashboardPage'
 import LoginPage from './pages/LoginPage'
+import CoverLetterPage from './pages/CoverLetterPage'
 import JDMatchPage from './pages/JDMatchPage'
 import ResumeAnalysisPage from './pages/ResumeAnalysisPage'
 import SignupPage from './pages/SignupPage'
@@ -32,6 +33,7 @@ function App() {
               <Route path="/applications/:applicationId" element={<ApplicationDetailPage />} />
               <Route path="/analyze" element={<ResumeAnalysisPage />} />
               <Route path="/jd-match" element={<JDMatchPage />} />
+              <Route path="/cover-letter" element={<CoverLetterPage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

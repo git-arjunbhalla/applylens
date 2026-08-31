@@ -282,8 +282,22 @@ The prompt asks for `matched_keywords`, `missing_keywords`, `relevant_skills`, `
 
 ### Dedicated `/jd-match` page
 
-The UI is a protected form with a PDF file input and a job-description textarea. It posts FormData through the existing Axios client without setting a multipart Content-Type (so the boundary stays intact). Keyword lists use badges; requirements stay as a text list. Cover-letter generation remains Stage 13.
+The UI is a protected form with a PDF file input and a job-description textarea. It posts FormData through the existing Axios client without setting a multipart Content-Type (so the boundary stays intact). Keyword lists use badges; requirements stay as a text list.
 
 ### Analyze vs JD Match
 
 Analyze (`/analyze`, `POST /api/v1/ai/resume-analysis`) is a standalone ATS/resume-quality review of one PDF. JD Match (`/jd-match`, `POST /api/v1/ai/jd-match`) compares a resume PDF to a pasted job description and returns keyword overlap. They share PDF extraction and the Stage 10 AI client; they do not share prompts, response schemas, or result layouts.
+
+## Stage 13 — AI cover letter
+
+### Same request-only PDF pipeline
+
+`POST /api/v1/ai/cover-letter` accepts a resume PDF plus `job_description`, `company`, and `role`. Nothing is persisted. Extraction, size limits, auth, `AIClient.generate_json`, and HTTP error mapping are the same as Stages 11–12. Cover-letter generation has its own prompt and `{ "cover_letter": string }` schema.
+
+### Draft, not guaranteed facts
+
+The prompt forbids inventing employment history, skills, projects, achievements, education, certifications, metrics, or company facts that are not in the supplied resume and job description. The UI labels the output as an AI-generated draft to review before use.
+
+### Dedicated `/cover-letter` page
+
+The protected form posts FormData (PDF + company + role + JD). Results show the letter as readable text with a Copy button (`navigator.clipboard`). The page does not call Gemini and has no `VITE_*` AI variables.
