@@ -1,6 +1,9 @@
 node_modules
 dist
 dist-ssr
+src/test
+*.test.js
+*.test.jsx
 .env
 .env.*
 !.env.example

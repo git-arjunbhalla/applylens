@@ -434,5 +434,21 @@ Production AI quota is 10 requests per user per hour. Stage 19 must not send 10+
 
 ### Honest status
 
-This environment had no AWS CLI, no EC2 SSH key, and no reachable ApplyLens origin. Stage 19 is therefore **not complete**. Results are recorded in `docs/stage-19-verification.md` rather than implied by repository tests.
+Stage 19 verification tools were added before a public host existed. A live stack was later confirmed at `http://13.203.208.130` (frontend, `/health`, Postgres/Redis unpublished, smoke tests). The record is `docs/stage-19-verification.md`. Repository tests still do not deploy to AWS.
+
+## Stage 20 — Portfolio and production hardening
+
+### No new product surface
+
+Stage 20 does not add features, Kubernetes, extra AWS services, or a second database. Compose remains one EC2 host with nginx, FastAPI, PostgreSQL, and Redis.
+
+### Production hardening that stayed small
+
+Published ports stay **80 and 8000**. Postgres and Redis stay unpublished. Containers keep `restart: unless-stopped`. `no-new-privileges` was added so a process cannot re-acquire dropped capabilities after start. nginx sets `server_tokens off` plus `X-Content-Type-Options`, `X-Frame-Options`, and `Referrer-Policy`. Log rotation (`json-file`, 10m × 3) was already present; Compose YAML anchors only share that block.
+
+Redis still has no password. The Compose network is the isolation. Adding Redis AUTH would require wiring a secret through `REDIS_URL` without changing the limiter’s fail-open behavior. TLS was not added; the demo remains HTTP.
+
+### README vs live host
+
+The README names the verified public IP and includes screenshots taken from that origin. The IP is not a stable DNS name. CI still does not deploy.
 

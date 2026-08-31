@@ -1,7 +1,8 @@
 # Environment and secrets
 .env
-.env.local
-.env.production
+.env.*
+!.env.example
+!.env.production.example
 *.pem
 *.key
 id_rsa
@@ -15,11 +16,13 @@ id_rsa
 **/.pytest_cache/
 **/.coverage
 **/htmlcov/
+**/coverage.xml
 
 # Node
 **/node_modules/
 **/dist/
 **/dist-ssr/
+**/coverage/
 
 # Editors and OS
 .idea/

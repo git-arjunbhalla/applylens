@@ -1,6 +1,6 @@
 # AWS EC2 deployment (Stages 18–19)
 
-This document describes how to run ApplyLens on a single EC2 instance using the existing Docker Compose architecture. Console launch, key pair, security group, and Elastic IP remain **manual**. Stage 19 is live verification of that host; it is **not** complete until the checks below succeed against a real public IP.
+This document describes how to run ApplyLens on a single EC2 instance using the existing Docker Compose architecture. Console launch, key pair, security group, and Elastic IP remain **manual**. Stage 19 live verification for public IP `13.203.208.130` is recorded in [`docs/stage-19-verification.md`](stage-19-verification.md).
 
 Region: **ap-south-1** (Mumbai).
 
@@ -299,4 +299,4 @@ Production supports `AI_PROVIDER=gemini`. Automated CI must not set `APPLYLENS_L
 - Redis counters reset when the Redis container is recreated.
 - Changing the public IP requires a frontend image rebuild.
 - `t3.micro` may need swap to finish `npm` image builds.
-- Stage 18 prepares the repository. Stage 19 is complete only after live EC2 checks in `docs/stage-19-verification.md` are recorded as passing.
+- Stage 18 prepares the repository. Stage 19 live results for this project are in `docs/stage-19-verification.md`. The demo uses HTTP, not TLS.
