@@ -37,6 +37,21 @@ uvicorn app.main:app --reload
 
 The API will be available at `http://localhost:8000`.
 
+## Docker (local Compose)
+
+When the API runs in Docker Compose, PostgreSQL and Redis are sibling services (`postgres`, `redis`). `DATABASE_URL` and `REDIS_URL` must use those hostnames, not `localhost`. Compose sets them; do not bake secrets into the image.
+
+From the repository root:
+
+```powershell
+copy .env.example .env
+docker compose up -d --build
+```
+
+The backend image runs `alembic upgrade head` on start, then uvicorn on `0.0.0.0:8000`. Healthcheck: `GET /health`. Redis is not persisted; it only stores AI rate-limit counters.
+
+This is local infrastructure, not production or AWS deployment.
+
 ## Health check
 
 ```powershell

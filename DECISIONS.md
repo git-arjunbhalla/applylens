@@ -356,3 +356,25 @@ Authorization is enforced in FastAPI, not only in React route guards. Dedicated 
 
 Frontend tests cover authentication, application flows, AI forms (including 429), and a source scan for backend secrets. `npm run build` remains part of Stage 15 verification.
 
+## Stage 16 — Docker and local infrastructure
+
+### Compose around the existing monolith
+
+Stage 16 containers the existing FastAPI app, the Vite production build (nginx), PostgreSQL, and Redis. It does not split the backend into services, replace Postgres, persist Redis, or deploy to AWS. The default Compose network is enough for service DNS (`postgres`, `redis`, `backend`, `frontend`).
+
+### Hostnames vs localhost
+
+Inside Compose, `DATABASE_URL` and `REDIS_URL` use service names. The browser is outside the Compose network, so `VITE_API_BASE_URL` stays `http://localhost:8000` (the published backend port). CORS allows `http://localhost:8080` for the published nginx frontend.
+
+### Secrets stay out of images
+
+Dockerfiles do not copy `.env`. Compose interpolates a gitignored root `.env` (from `.env.example`) into backend environment variables. Frontend build args are only `VITE_API_BASE_URL`. Postgres and Redis ports are not published. Local Postgres credentials in `.env.example` are development defaults, not production secrets.
+
+### Migrations on container start
+
+The backend image runs `alembic upgrade head` before uvicorn so an empty Compose volume gets the existing schema. No new migration tool was added.
+
+### Redis remains ephemeral rate limiting
+
+The Redis service disables RDB/AOF. ApplyLens still uses Redis only for per-user AI counters from Stage 14. PostgreSQL remains the source of truth.
+
