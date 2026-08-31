@@ -51,3 +51,33 @@ class ResumeAnalysisResult(BaseModel):
     @classmethod
     def strip_list_items(cls, values: list[str]) -> list[str]:
         return _clean_string_list(values)
+
+
+class JDMatchRequest(BaseModel):
+    resume_text: str = Field(min_length=1, max_length=RESUME_ANALYSIS_TEXT_MAX_LENGTH)
+    job_description: str = Field(min_length=1, max_length=RESUME_ANALYSIS_TEXT_MAX_LENGTH)
+
+    @field_validator("resume_text", "job_description")
+    @classmethod
+    def strip_required_text(cls, value: str) -> str:
+        return _strip_required_text(value)
+
+
+class JDMatchResult(BaseModel):
+    """Keyword overlap output. Incomplete provider JSON is rejected, not filled in."""
+
+    matched_keywords: list[str]
+    missing_keywords: list[str]
+    relevant_skills: list[str]
+    important_requirements: list[str]
+    match_score: int = Field(ge=MATCH_SCORE_MIN, le=MATCH_SCORE_MAX)
+
+    @field_validator(
+        "matched_keywords",
+        "missing_keywords",
+        "relevant_skills",
+        "important_requirements",
+    )
+    @classmethod
+    def strip_list_items(cls, values: list[str]) -> list[str]:
+        return _clean_string_list(values)

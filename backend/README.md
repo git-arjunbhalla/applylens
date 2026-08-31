@@ -95,6 +95,8 @@ AI calls are made only from FastAPI through `app.services.ai_client`. React must
 
 Resume analysis: `POST /api/v1/ai/resume-analysis` (authenticated). It compares resume text to a job description and returns a validated structured result. The texts are not stored.
 
+Job description match: `POST /api/v1/ai/jd-match` (authenticated). It returns keyword overlap (`matched_keywords`, `missing_keywords`, `relevant_skills`, `important_requirements`, `match_score`). The texts are not stored.
+
 Optional live check (not part of the default test suite):
 
 ```powershell

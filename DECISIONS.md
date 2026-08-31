@@ -277,3 +277,17 @@ The handler stays thin. `analyze_resume` builds the prompt and calls `client.gen
 ### Dedicated Analyze page
 
 The UI is a protected `/analyze` form with two text areas. Results are rendered as text lists, never as HTML. The page does not call Gemini and has no `VITE_*` AI variables. Per-user rate limits and stricter input-size policy are left to Stage 14.
+
+## Stage 12 — AI job description match
+
+### Same request-only pattern as resume analysis
+
+`POST /api/v1/ai/jd-match` accepts resume and JD text and does not persist them. It reuses Stage 10 `AIClient.generate_json`, the same auth dependency, input size limit (50,000 characters), and HTTP error mapping as Stage 11.
+
+### Keyword overlap, not a second resume analysis
+
+The prompt asks for `matched_keywords`, `missing_keywords`, `relevant_skills`, `important_requirements`, and `match_score` (integer 0–100). Missing keywords mean the JD term is not evidenced in the resume, not that the candidate lacks the skill. The model is told not to invent qualifications or claim the user is qualified.
+
+### Dedicated `/jd-match` page
+
+The UI is a protected form that posts through the existing Axios client. Keyword lists use badges; requirements stay as a text list. React does not call Gemini. Cover-letter generation remains Stage 13.
