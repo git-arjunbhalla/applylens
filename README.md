@@ -14,7 +14,7 @@ SQLAlchemy
 PostgreSQL
 ```
 
-Stages 1–18 cover the project foundation, database, authentication, application tracking, interviews, analytics, UI, the AI provider abstraction, standalone resume ATS analysis, resume-to-job-description matching, AI cover-letter drafts, Redis-backed per-user AI rate limiting, a testing/security review, local Docker Compose infrastructure, GitHub Actions CI, and AWS EC2 deployment preparation. Local Compose is for development. Production uses `docker-compose.prod.yml` on a single EC2 instance. CI validates the repository; it does not deploy to AWS. This repository has not been verified as a live AWS deployment.
+Stages 1–18 cover the project foundation through AWS EC2 deployment **preparation**. Stage 19 is live production verification of that EC2 host. Local Compose is for development. Production uses `docker-compose.prod.yml` on a single EC2 instance. CI validates the repository; it does not deploy to AWS. **A live AWS deployment has not been verified.** See [`docs/stage-19-verification.md`](docs/stage-19-verification.md).
 
 ## Local setup
 
@@ -93,7 +93,7 @@ Production target is **one Ubuntu EC2 instance** in **ap-south-1** running Docke
 
 Recommended instance: Ubuntu Server 24.04 LTS **x86_64**, **t3.micro**, 20–30 GiB gp3. Security group: SSH from your IP, 80 and 8000 from the internet; never 5432, 6379, or the Docker daemon. Create secrets in a gitignored `.env` on the host from `.env.production.example`.
 
-Exact SSH, Docker install, clone, env, build, health, logs, restart, stop, and cleanup commands: [`docs/aws-ec2-deployment.md`](docs/aws-ec2-deployment.md). AWS console launch, key pair, security group, and Elastic IP are **manual steps**. Terminating the instance can destroy Postgres data unless the volume is snapshotted.
+Exact SSH, Docker install, clone, env, build, health, logs, restart, stop, cleanup, and Stage 19 verification commands: [`docs/aws-ec2-deployment.md`](docs/aws-ec2-deployment.md). AWS console launch, key pair, security group, and Elastic IP are **manual steps**. After the stack is up, run `python scripts/verify_production.py --host <public-ip>` from a laptop and `bash scripts/ec2_host_verify.sh` on the instance. Terminating the instance can destroy Postgres data unless the volume is snapshotted.
 
 ```bash
 cp .env.production.example .env
@@ -109,5 +109,6 @@ curl http://127.0.0.1:8000/health
 - `BUILD_SPEC.md` — staged build specification
 - `DECISIONS.md` — architectural decisions and tradeoffs
 - `docs/aws-ec2-deployment.md` — EC2, security group, Compose production, and operations
+- `docs/stage-19-verification.md` — live production verification results (currently incomplete)
 - `backend/README.md` — backend setup
 - `frontend/README.md` — frontend setup

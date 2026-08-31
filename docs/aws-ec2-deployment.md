@@ -1,6 +1,6 @@
-# AWS EC2 deployment (Stage 18)
+# AWS EC2 deployment (Stages 18–19)
 
-This document prepares ApplyLens to run on a single EC2 instance using the existing Docker Compose architecture. It does **not** record a completed AWS launch. Console actions below are **manual**.
+This document describes how to run ApplyLens on a single EC2 instance using the existing Docker Compose architecture. Console launch, key pair, security group, and Elastic IP remain **manual**. Stage 19 is live verification of that host; it is **not** complete until the checks below succeed against a real public IP.
 
 Region: **ap-south-1** (Mumbai).
 
@@ -169,9 +169,18 @@ From your laptop (after security-group ports are open):
 
 ```bash
 curl -sS http://YOUR_EC2_PUBLIC_IP:8000/health
+python scripts/verify_production.py --host YOUR_EC2_PUBLIC_IP
 ```
 
+Add `--live-ai` only when `AI_API_KEY` is set on the host. That flag sends **three** Gemini requests (one per AI feature) and must not be used to force HTTP 429.
+
 Expected API body: `{"status":"ok"}`. `/health` does not query PostgreSQL.
+
+On the EC2 host, after Compose is up:
+
+```bash
+bash scripts/ec2_host_verify.sh
+```
 
 ### 9. Logs
 
@@ -244,9 +253,34 @@ Public frontend build arg:
 | --- | --- |
 | `VITE_API_BASE_URL` | `http://IP:8000` |
 
+## Stage 19 verification
+
+Repository checks (no AWS account required):
+
+- `docker-compose.prod.yml` publishes only 80 and 8000. PostgreSQL and Redis have no `ports:` mappings.
+- `ENVIRONMENT=production` rejects the development `JWT_SECRET` and secrets shorter than 32 characters (`backend/tests/test_settings.py`).
+- GitHub Actions CI on `main` runs pytest, Vitest, the frontend production build, and Compose file validation. CI does not deploy.
+
+Live checks (require a running EC2 host in ap-south-1):
+
+| Check | How |
+| --- | --- |
+| Frontend / SPA refresh | `GET http://IP/` and `GET http://IP/applications` return the nginx `index.html` |
+| Backend health | `GET http://IP:8000/health` → `{"status":"ok"}` |
+| Auth, CRUD, interviews, analytics | `python scripts/verify_production.py --host IP` |
+| CORS | Script sends `Origin: http://IP` on signup and an OPTIONS preflight |
+| Postgres / Redis not public | TCP 5432 and 6379 must not accept connections from the internet |
+| JWT in production | Host script asserts `ENVIRONMENT=production` and a unique ≥32-char secret **without printing it** |
+| Redis limiter | Host script `PING`s Redis and lists `ratelimit:ai:*` after at most three AI calls |
+| Containers / restart | Host script prints `compose ps`, backend logs (Alembic on start), restarts backend, re-checks health |
+
+Do not open 5432, 6379, or the Docker socket to verify them. Confirm they are closed from your laptop and that they are unpublished in Compose.
+
+Recorded results: [`docs/stage-19-verification.md`](stage-19-verification.md).
+
 ## AI (Gemini)
 
-Production supports `AI_PROVIDER=gemini`. Automated CI must not set `APPLYLENS_LIVE_GEMINI` or a real `AI_API_KEY`. After a real deploy, one successful request per AI feature is enough for a manual check.
+Production supports `AI_PROVIDER=gemini`. Automated CI must not set `APPLYLENS_LIVE_GEMINI` or a real `AI_API_KEY`. After a real deploy, one successful request per AI feature is enough for a manual check. Do not send 10+ AI requests to prove rate limiting on the live quota; Redis `INCR` on `ratelimit:ai:*` after those three calls is the production evidence. HTTP 429 is covered by the automated test suite.
 
 ## Cost considerations
 
@@ -265,4 +299,4 @@ Production supports `AI_PROVIDER=gemini`. Automated CI must not set `APPLYLENS_L
 - Redis counters reset when the Redis container is recreated.
 - Changing the public IP requires a frontend image rebuild.
 - `t3.micro` may need swap to finish `npm` image builds.
-- Stage 18 verifies repository and Docker configuration. It does not claim a live AWS deployment until Stage 19-style checks succeed on a real instance.
+- Stage 18 prepares the repository. Stage 19 is complete only after live EC2 checks in `docs/stage-19-verification.md` are recorded as passing.

@@ -422,3 +422,17 @@ There is no load balancer or TLS certificate. The SPA still calls FastAPI at `ht
 
 GitHub Actions validates both Compose files and builds local images. It does not launch EC2, store AWS keys, or call Gemini. This stage prepares and verifies the repository. A live AWS deployment is not claimed until it is actually launched and checked.
 
+## Stage 19 — Production verification
+
+### Live EC2 is the source of truth
+
+Stage 19 does not change the Compose architecture. Verification is a public-IP smoke script (`scripts/verify_production.py`) plus host-side Docker/Redis/JWT checks (`scripts/ec2_host_verify.sh`). Those tools are not a second deployment path and are not run by GitHub Actions against AWS.
+
+### Rate limiting is not proven by exhausting Gemini
+
+Production AI quota is 10 requests per user per hour. Stage 19 must not send 10+ live Gemini calls to force HTTP 429. Automated tests already cover 429. On a real host, Redis `PING` plus `ratelimit:ai:*` after at most three AI smokes is enough to show the limiter is talking to the real Redis container.
+
+### Honest status
+
+This environment had no AWS CLI, no EC2 SSH key, and no reachable ApplyLens origin. Stage 19 is therefore **not complete**. Results are recorded in `docs/stage-19-verification.md` rather than implied by repository tests.
+
