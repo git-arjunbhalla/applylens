@@ -82,6 +82,12 @@ Do not change the stack unless a technical limitation makes it genuinely necessa
 - PostgreSQL
 - pytest
 
+### Backend testing
+
+- pytest for unit tests
+- FastAPI API/integration tests via the project's HTTP test client (HTTPX / FastAPI `TestClient` as already used)
+- Mock AI provider calls in automated tests; never make live Gemini calls in the test suite
+
 ### Frontend
 
 - React
@@ -111,14 +117,34 @@ The provider must be configurable through environment variables so another provi
 
 Never expose an AI API key to the frontend.
 
+### Observability
+
+- Structured / application logging where it helps diagnose failures (API errors, AI provider errors, rate-limit events)
+- Do not add a full observability platform (Datadog, OpenTelemetry collectors, etc.) unless a later stage explicitly requests it
+
+### Later-stage infrastructure (not required for the initial application foundation)
+
+These belong to later roadmap stages. Do not introduce them during Stages 1–13.
+
+- Docker and Docker Compose (Stage 16: local infrastructure)
+- Redis (Stage 14: AI rate limiting / optional short-lived AI request deduplication only)
+- GitHub Actions (Stage 17: CI)
+
 ### Deployment
 
 - Frontend: Vercel
 - Backend: Render
 - PostgreSQL: Neon free tier
 - Source control: GitHub
+- Production Redis only if required by the Stage 14 rate-limiting architecture
 
-Do not introduce Docker, Redis, Kubernetes, AWS, or other infrastructure unless there is a clear need.
+### Explicitly out of scope
+
+- Kafka
+- Kubernetes
+- Microservices
+- Complex distributed systems
+- AWS or other cloud infrastructure beyond the free-tier deployment targets above
 
 ---
 
@@ -757,82 +783,151 @@ STOP after completing Stage 13.
 
 # STAGE 14: AI RATE LIMITING AND COST CONTROL
 
-Before deployment, protect AI endpoints.
+Goal:
 
-Implement a simple per-user rate limit.
+Protect AI endpoints from abuse and unbounded cost before deployment.
 
-Do not introduce Redis unless genuinely necessary.
+This stage is **not complete**. Do not claim Redis or production rate limiting already exists.
 
-For the MVP, an in-memory solution is acceptable if its limitations are documented.
+Implement:
 
-Also:
+- per-user AI request rate limiting
+- AI input-size limits
+- request timeout enforcement
+- provider error handling
+- prevention of unnecessary duplicate AI requests
 
-- limit input size
-- set request timeout
-- handle provider errors
-- avoid unnecessary duplicate AI requests
+### Redis
 
-Document the design in DECISIONS.md.
+Use Redis for the rate limiter if the implementation is straightforward and appropriate.
+
+Redis should be used for:
+
+- per-user rate limiting
+- optionally short-lived caching / deduplication of identical AI requests if this can be implemented cleanly
+
+Do **not** use Redis as the primary database.
+
+Do **not** turn this into a distributed-systems project.
+
+Keep a simple fallback if appropriate (for example, fail closed or a documented in-memory fallback when Redis is unavailable locally). Prefer a behavior that is safe and easy to explain.
+
+### Document in DECISIONS.md
+
+- why Redis is being used
+- what data is stored in Redis
+- TTL strategy
+- what happens if Redis is unavailable
+- why Redis is preferable to a purely in-memory limiter for the deployed application (multi-instance / process restart / consistent limits)
+
+Technologies should be added because they solve a real engineering problem in ApplyLens, not merely to increase the technology list.
 
 STOP after completing Stage 14.
 
 ---
 
-# STAGE 15: TESTING AND SECURITY REVIEW
+# STAGE 15: TESTING, SECURITY AND QUALITY REVIEW
 
-Perform a complete review.
+Goal:
+
+Strengthen the project with meaningful unit, API/integration, security, and frontend tests. This stage is **not complete** until the expanded coverage below exists and the suites pass.
+
+Do not add tests merely to increase the test count. Tests should cover meaningful behavior and failure cases.
+
+### Unit testing
+
+Test important pure/service logic independently:
+
+- validation helpers
+- PDF extraction/validation
+- authentication helpers
+- business logic
+- AI prompt construction
+- response parsing
+- analytics calculations
+- rate-limit logic where practical
+
+### API/integration testing
+
+Test actual FastAPI endpoints using a test client.
+
+Cover:
+
+- authentication
+- applications CRUD
+- interviews
+- analytics
+- AI endpoints
+- validation
+- authorization
+- error handling
+
+### Security testing
 
 Check:
-
-### Authentication
 
 - password hashing
-- token expiration
-- refresh flow
+- JWT expiration
+- refresh tokens
 - invalid tokens
 - unauthorized requests
+- ownership enforcement
+- secret handling
+- CORS
+- API key exposure
+- AI endpoint abuse / rate limiting
 
-### Authorization
+Explicitly test that one user cannot access another user's:
 
-Confirm users cannot:
+- applications
+- interviews
+- protected resources
 
-- read another user's applications
-- modify another user's applications
-- delete another user's applications
-- access another user's interviews
+Confirm users cannot read, modify, or delete another user's applications or interviews.
 
-### API
+### AI testing
 
-Check:
+Never make live Gemini calls in the automated test suite.
 
-- validation
-- 404s
-- 401s
-- 422s
-- malformed requests
-- empty data
+Mock the AI provider and test:
 
-### AI
-
-Check:
-
-- API key isn't exposed
-- frontend never calls provider directly
-- timeout handling
-- malformed AI responses
+- successful responses
+- malformed responses
+- provider failures
+- timeouts
+- validation failures
 - rate limiting
 
-### Frontend
+Also confirm:
 
-Check:
+- API key isn't exposed
+- frontend never calls the provider directly
 
+### Frontend testing
+
+Continue using the existing frontend test setup.
+
+Cover:
+
+- authentication flows
+- important forms
 - loading states
 - error states
+- AI feature interactions
+- PDF uploads
+- copy-to-clipboard behavior
+- protected routes
 - authentication redirects
 - API failures
-- mobile layout
+- mobile layout where practical
 
-Run the complete test suite.
+### Test quality
+
+Run:
+
+- complete backend pytest suite
+- complete frontend test suite
+- frontend production build
 
 Fix actual problems found.
 
@@ -842,11 +937,92 @@ STOP after completing Stage 15.
 
 ---
 
-# STAGE 16: DEPLOYMENT
+# STAGE 16: DOCKER AND LOCAL INFRASTRUCTURE
+
+Goal:
+
+Make the application easy to run consistently.
+
+This stage is **not complete**. Do not claim Docker already exists.
+
+Create:
+
+- backend Dockerfile
+- frontend Dockerfile if appropriate for the chosen deployment architecture
+- docker-compose configuration for local infrastructure
+
+The local development environment should be able to run:
+
+- FastAPI
+- PostgreSQL
+- Redis
+
+Use environment variables for configuration.
+
+Do not containerize unnecessarily complicated services.
+
+Document:
+
+- docker compose startup
+- environment configuration
+- database migrations
+- Redis configuration
+
+Verify:
+
+- backend starts
+- PostgreSQL connection works
+- Redis connection works
+- migrations work
+- application functionality still works
+
+Do not move deployment into this stage yet.
+
+STOP after completing Stage 16.
+
+---
+
+# STAGE 17: CI/CD
+
+Goal:
+
+Automatically verify the project whenever changes are pushed.
+
+This stage is **not complete**. Do not claim CI already exists.
+
+Use GitHub Actions.
+
+Create a workflow that runs on push and/or pull request.
+
+At minimum:
+
+- install backend dependencies
+- run backend tests
+- install frontend dependencies
+- run frontend tests
+- run frontend production build
+
+If practical:
+
+- run linting / type / static checks already used by the project
+
+The CI pipeline must fail when tests fail.
+
+Do not create a complicated deployment pipeline yet.
+
+Document the workflow.
+
+STOP after completing Stage 17.
+
+---
+
+# STAGE 18: DEPLOYMENT
 
 Goal:
 
 Deploy the working application.
+
+This stage is **not complete**.
 
 ## PostgreSQL
 
@@ -894,13 +1070,24 @@ to point to the deployed backend.
 
 Configure production CORS correctly.
 
-STOP after completing Stage 16.
+## Production Redis and secrets
+
+- configure production Redis if required by the final architecture
+- ensure AI rate limiting works in production
+- ensure secrets are configured only through environment variables
+- ensure no secrets are committed
+
+Keep free-tier constraints in mind.
+
+STOP after completing Stage 18.
 
 ---
 
-# STAGE 17: PRODUCTION VERIFICATION
+# STAGE 19: PRODUCTION VERIFICATION
 
 Test the actual deployed application.
+
+This stage is **not complete**.
 
 Verify:
 
@@ -922,21 +1109,29 @@ Verify:
 16. Mobile layout works.
 17. Refreshing pages does not break routing.
 18. Backend health endpoint works.
+19. AI rate limiting works.
+20. Redis-backed functionality works (if enabled in production).
+21. Production errors are handled safely.
+22. CI checks are passing.
+23. Docker / local setup remains reproducible.
 
 If something fails:
 
 1. Diagnose it.
 2. Fix it.
 3. Retest it.
-4. Do not simply tell me that it failed.
+4. Verify again.
+5. Do not simply tell me that it failed.
 
-STOP after completing Stage 17.
+STOP after completing Stage 19.
 
 ---
 
-# STAGE 18: PORTFOLIO PREPARATION
+# STAGE 20: PORTFOLIO PREPARATION
 
 Prepare the project for GitHub and job applications.
+
+This stage is **not complete**.
 
 Create a strong README containing:
 
@@ -944,10 +1139,16 @@ Create a strong README containing:
 - problem solved
 - features
 - architecture
+- backend architecture
 - tech stack
 - database design
 - API overview
 - AI architecture
+- Redis usage and why it exists
+- Docker setup
+- CI/CD workflow
+- testing strategy
+- security considerations
 - local setup
 - environment variables
 - deployment architecture
@@ -977,15 +1178,27 @@ AI abstraction
   ↓
 Gemini
 
+and, if Redis is used:
+
+FastAPI
+  ↓
+Redis (rate limiting / optional short-lived AI dedup only)
+
 Do not exaggerate project capabilities.
 
-STOP after completing Stage 18.
+Do not exaggerate the use of any technology.
+
+For example: if Redis is only used for rate limiting, say exactly that. Do not claim "distributed caching architecture" unless it actually exists.
+
+STOP after completing Stage 20.
 
 ---
 
 # 5. IMPORTANT IMPLEMENTATION RULES
 
 ## Keep the MVP small
+
+Technologies should be added because they solve a real engineering problem in ApplyLens, not merely to increase the technology list.
 
 Do NOT add:
 
@@ -995,14 +1208,28 @@ Do NOT add:
 - browser extensions
 - job scraping
 - complex background workers
-- Redis
+- Kafka
 - Kubernetes
 - microservices
 - payment systems
 - recommendation engines
 - complicated DevOps infrastructure
+- Redis features beyond the documented Stage 14 use case
+- technologies without a real use case in this application
 
-unless explicitly requested later.
+### Allowed later, only in the stages that specify them
+
+- **Docker / Docker Compose**: planned for Stage 16 (local infrastructure). Not a requirement for the initial application foundation.
+- **Redis**: planned only where it provides a concrete benefit, primarily AI rate limiting / optional short-lived AI request caching in Stage 14. Do not add Redis merely for the resume. Do not use Redis as the primary database.
+- **GitHub Actions**: planned for Stage 17 (test pipeline, not a full deployment pipeline).
+
+### Remain out of scope
+
+- Kubernetes
+- Kafka
+- microservices
+- complex distributed systems
+- complex DevOps infrastructure
 
 ---
 
@@ -1041,6 +1268,14 @@ When working on this project:
 - Avoid duplicate logic.
 - Do not install packages without a reason.
 - Explain why a new dependency is necessary.
+- Every new dependency must have a documented reason.
+- Prefer technologies that solve real problems.
+- Do not add infrastructure solely to make the resume longer.
+- Do not add Kafka.
+- Do not add Kubernetes.
+- Do not add microservices.
+- Do not add Redis features beyond the documented use case (AI rate limiting / optional short-lived AI deduplication).
+- Keep implementations understandable enough for a beginner/intermediate developer to explain in an interview.
 - Do not expose secrets.
 - Do not fabricate successful tests.
 - Do not claim deployment succeeded unless it actually succeeded.
@@ -1074,8 +1309,12 @@ feat: add AI provider abstraction
 feat: add resume analysis
 feat: add job description matching
 feat: add cover letter generation
-test: add security and integration coverage
+feat: add AI rate limiting
+test: complete security and integration coverage
+chore: containerize application
+ci: add automated test pipeline
 chore: prepare production deployment
+test: verify production deployment
 docs: prepare portfolio documentation
 
 Do not make one enormous commit containing the entire project.
@@ -1099,6 +1338,15 @@ The project is finished only when:
 - AI features work
 - AI keys are protected
 - tests pass
+- meaningful unit tests exist
+- API/integration tests exist
+- security checks exist
+- CI pipeline passes
+- Docker setup works
+- Redis-backed rate limiting works if enabled
+- production AI endpoints are rate limited
+- production configuration is documented
+- deployment is reproducible
 - backend is deployed
 - frontend is deployed
 - production database is connected
@@ -1111,37 +1359,45 @@ The project is finished only when:
 
 ---
 
-# 10. FIRST INSTRUCTION
+# 10. CURRENT PROJECT STATE AND NEXT INSTRUCTION
 
-You are currently starting from a fresh repository.
+Do not treat this repository as a fresh project. Do not restart or renumber completed historical work.
 
-ONLY perform STAGE 1.
+## Already implemented (do not redo unless a bug must be fixed)
 
-Do not implement future stages.
+- Stage 1: project foundation
+- Stage 2: database
+- Stage 3: authentication
+- Stage 4: application CRUD
+- Stage 5: interviews
+- Stage 6: analytics
+- Stage 7: frontend authentication
+- Stage 8: application UI
+- Stage 9: UI polish
+- Stage 10: AI foundation
+- Stage 11: Resume Analyzer
+- Stage 12: JD Match
 
-First inspect the repository.
+## Current stage
 
-Then create the project foundation.
+- Stage 13: AI Cover Letter (in progress / current)
 
-Run the necessary checks.
+## Future roadmap (not implemented yet)
 
-At the end, report:
+Do **not** claim these are already done:
 
-STAGE 1 COMPLETE
+- Stage 14: AI Rate Limiting and Cost Control (Redis for rate limiting if appropriate)
+- Stage 15: Testing, Security and Quality Review
+- Stage 16: Docker and Local Infrastructure
+- Stage 17: CI/CD
+- Stage 18: Deployment
+- Stage 19: Production Verification
+- Stage 20: Portfolio Preparation
 
-Implemented:
-- ...
+When asked to continue implementation, ONLY perform the requested stage.
 
-Files created/modified:
-- ...
+Do not implement future stages automatically.
 
-Commands/tests:
-- ...
+Do not add Kafka, Kubernetes, or microservices.
 
-Manual verification:
-- ...
-
-Next stage:
-STAGE 2
-
-Then STOP.
+At the end of a requested stage, report completion in the usual format, then STOP.
