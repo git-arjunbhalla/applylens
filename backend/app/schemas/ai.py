@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, field_validator
 
 RESUME_ANALYSIS_TEXT_MAX_LENGTH = 50_000
+RESUME_PDF_MAX_BYTES = 5 * 1024 * 1024
 MATCH_SCORE_MIN = 0
 MATCH_SCORE_MAX = 100
 
@@ -21,43 +22,61 @@ def _clean_string_list(values: list[str]) -> list[str]:
     return cleaned
 
 
-class ResumeAnalysisRequest(BaseModel):
-    resume_text: str = Field(min_length=1, max_length=RESUME_ANALYSIS_TEXT_MAX_LENGTH)
-    job_description: str = Field(min_length=1, max_length=RESUME_ANALYSIS_TEXT_MAX_LENGTH)
+class ResumeAnalysisScoreBreakdown(BaseModel):
+    ats_compatibility: int = Field(ge=MATCH_SCORE_MIN, le=MATCH_SCORE_MAX)
+    content_strength: int = Field(ge=MATCH_SCORE_MIN, le=MATCH_SCORE_MAX)
+    keyword_optimization: int = Field(ge=MATCH_SCORE_MIN, le=MATCH_SCORE_MAX)
+    resume_structure: int = Field(ge=MATCH_SCORE_MIN, le=MATCH_SCORE_MAX)
+    achievement_quality: int = Field(ge=MATCH_SCORE_MIN, le=MATCH_SCORE_MAX)
 
-    @field_validator("resume_text", "job_description")
+
+class ResumeRewriteSuggestion(BaseModel):
+    original: str
+    suggested: str
+    reason: str
+
+    @field_validator("original", "suggested", "reason")
     @classmethod
     def strip_required_text(cls, value: str) -> str:
         return _strip_required_text(value)
 
 
 class ResumeAnalysisResult(BaseModel):
-    """Structured AI output. Incomplete provider JSON is rejected, not filled in."""
+    """Standalone ATS/resume-quality output. Incomplete provider JSON is rejected."""
 
-    match_score: int = Field(ge=MATCH_SCORE_MIN, le=MATCH_SCORE_MAX)
-    matching_skills: list[str]
-    missing_skills: list[str]
+    ats_score: int = Field(ge=MATCH_SCORE_MIN, le=MATCH_SCORE_MAX)
+    score_breakdown: ResumeAnalysisScoreBreakdown
     strengths: list[str]
-    weaknesses: list[str]
-    recommendations: list[str]
+    issues: list[str]
+    missing_sections: list[str]
+    detected_skills: list[str]
+    keyword_suggestions: list[str]
+    improvement_suggestions: list[str]
+    rewrite_suggestions: list[ResumeRewriteSuggestion]
+    summary: str
 
     @field_validator(
-        "matching_skills",
-        "missing_skills",
         "strengths",
-        "weaknesses",
-        "recommendations",
+        "issues",
+        "missing_sections",
+        "detected_skills",
+        "keyword_suggestions",
+        "improvement_suggestions",
     )
     @classmethod
     def strip_list_items(cls, values: list[str]) -> list[str]:
         return _clean_string_list(values)
 
+    @field_validator("summary")
+    @classmethod
+    def strip_summary(cls, value: str) -> str:
+        return value.strip()
+
 
 class JDMatchRequest(BaseModel):
-    resume_text: str = Field(min_length=1, max_length=RESUME_ANALYSIS_TEXT_MAX_LENGTH)
     job_description: str = Field(min_length=1, max_length=RESUME_ANALYSIS_TEXT_MAX_LENGTH)
 
-    @field_validator("resume_text", "job_description")
+    @field_validator("job_description")
     @classmethod
     def strip_required_text(cls, value: str) -> str:
         return _strip_required_text(value)

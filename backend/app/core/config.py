@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     # AI provider is backend-only. Never expose the key to the frontend.
     ai_provider: str = "gemini"
     ai_api_key: SecretStr = SecretStr("")
-    ai_model: str = "gemini-2.5-flash"
+    ai_model: str = "gemini-3.6-flash"
     ai_timeout_seconds: float = 30.0
 
     @property

@@ -88,14 +88,14 @@ pytest
 | `JWT_REFRESH_TOKEN_EXPIRE_DAYS` | Refresh-token lifetime in days |
 | `AI_PROVIDER` | AI backend (`gemini` is the only implemented provider) |
 | `AI_API_KEY` | Gemini API key (backend only; never expose to the frontend) |
-| `AI_MODEL` | Gemini model name (default `gemini-2.5-flash`) |
+| `AI_MODEL` | Gemini model name (default `gemini-3.6-flash`) |
 | `AI_TIMEOUT_SECONDS` | Provider request timeout in seconds |
 
 AI calls are made only from FastAPI through `app.services.ai_client`. React must not call Gemini and must not receive `AI_API_KEY`.
 
-Resume analysis: `POST /api/v1/ai/resume-analysis` (authenticated). It compares resume text to a job description and returns a validated structured result. The texts are not stored.
+Resume analysis: `POST /api/v1/ai/resume-analysis` (authenticated, `multipart/form-data`). Upload a resume PDF as `resume`. The backend extracts text in memory and returns a standalone ATS/resume-quality result (`ats_score`, `score_breakdown`, strengths, issues, suggestions). No job description is accepted. The PDF is not stored.
 
-Job description match: `POST /api/v1/ai/jd-match` (authenticated). It returns keyword overlap (`matched_keywords`, `missing_keywords`, `relevant_skills`, `important_requirements`, `match_score`). The texts are not stored.
+Job description match: `POST /api/v1/ai/jd-match` (authenticated, `multipart/form-data`). Upload a resume PDF as `resume` and the job text as `job_description`. The backend extracts PDF text in memory with PyMuPDF (limit 5 MB) and returns keyword overlap (`matched_keywords`, `missing_keywords`, `relevant_skills`, `important_requirements`, `match_score`). The PDF and extracted text are not stored.
 
 Optional live check (not part of the default test suite):
 

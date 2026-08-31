@@ -1,11 +1,12 @@
 from typing import Any
 
+import pymupdf as fitz
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
 from app.api.deps import get_configured_ai_client
 from app.main import app
-from app.schemas.ai import JDMatchResult, RESUME_ANALYSIS_TEXT_MAX_LENGTH
+from app.schemas.ai import JDMatchResult, RESUME_PDF_MAX_BYTES
 from app.services.ai_client import parse_structured_json
 from app.services.ai_errors import AIProviderError, AIResponseError, AITimeoutError
 from app.services.jd_match import build_jd_match_prompt
@@ -59,6 +60,24 @@ class FakeAIClient:
         return self.result
 
 
+def _make_pdf_bytes(text: str | None) -> bytes:
+    document = fitz.open()
+    page = document.new_page()
+    if text:
+        page.insert_text((72, 72), text)
+    data = document.tobytes()
+    document.close()
+    return data
+
+
+def _resume_file(
+    data: bytes,
+    filename: str = "resume.pdf",
+    content_type: str = "application/pdf",
+) -> dict:
+    return {"resume": (filename, data, content_type)}
+
+
 def _signup(client: TestClient) -> dict:
     response = client.post(
         SIGNUP_PATH,
@@ -76,13 +95,26 @@ def _override_ai(fake: FakeAIClient) -> None:
     app.dependency_overrides[get_configured_ai_client] = lambda: fake
 
 
+def _post_match(
+    client: TestClient,
+    *,
+    access_token: str | None,
+    files: dict | None,
+    job_description: str | None = VALID_JD,
+) -> Any:
+    headers = _auth_headers(access_token) if access_token else {}
+    data = None if job_description is None else {"job_description": job_description}
+    return client.post(MATCH_PATH, headers=headers, files=files, data=data)
+
+
 def test_jd_match_requires_authentication(client: TestClient) -> None:
     fake = FakeAIClient(result=VALID_MATCH)
     _override_ai(fake)
 
-    response = client.post(
-        MATCH_PATH,
-        json={"resume_text": VALID_RESUME, "job_description": VALID_JD},
+    response = _post_match(
+        client,
+        access_token=None,
+        files=_resume_file(_make_pdf_bytes(VALID_RESUME)),
     )
 
     assert response.status_code == 401
@@ -95,10 +127,10 @@ def test_jd_match_succeeds_with_mocked_client(client: TestClient) -> None:
     fake = FakeAIClient(result=VALID_MATCH)
     _override_ai(fake)
 
-    response = client.post(
-        MATCH_PATH,
-        headers=_auth_headers(tokens["access_token"]),
-        json={"resume_text": VALID_RESUME, "job_description": VALID_JD},
+    response = _post_match(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(_make_pdf_bytes(VALID_RESUME)),
     )
 
     assert response.status_code == 200
@@ -114,15 +146,16 @@ def test_jd_match_succeeds_with_mocked_client(client: TestClient) -> None:
     assert "AI_API_KEY" not in response.text
 
 
-def test_jd_match_accepts_valid_resume_and_jd(client: TestClient) -> None:
+def test_jd_match_accepts_valid_pdf_and_jd(client: TestClient) -> None:
     tokens = _signup(client)
     fake = FakeAIClient(result=VALID_MATCH)
     _override_ai(fake)
 
-    response = client.post(
-        MATCH_PATH,
-        headers=_auth_headers(tokens["access_token"]),
-        json={"resume_text": f"  {VALID_RESUME}  ", "job_description": f"\n{VALID_JD}\n"},
+    response = _post_match(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(_make_pdf_bytes(VALID_RESUME)),
+        job_description=f"\n{VALID_JD}\n",
     )
 
     assert response.status_code == 200
@@ -133,7 +166,7 @@ def test_jd_match_accepts_valid_resume_and_jd(client: TestClient) -> None:
     assert response.json()["important_requirements"]
 
 
-def test_jd_match_rejects_empty_resume(client: TestClient) -> None:
+def test_jd_match_rejects_missing_pdf(client: TestClient) -> None:
     tokens = _signup(client)
     fake = FakeAIClient(result=VALID_MATCH)
     _override_ai(fake)
@@ -141,10 +174,26 @@ def test_jd_match_rejects_empty_resume(client: TestClient) -> None:
     response = client.post(
         MATCH_PATH,
         headers=_auth_headers(tokens["access_token"]),
-        json={"resume_text": "   ", "job_description": VALID_JD},
+        data={"job_description": VALID_JD},
     )
 
     assert response.status_code == 422
+    assert fake.calls == []
+
+
+def test_jd_match_rejects_non_pdf_upload(client: TestClient) -> None:
+    tokens = _signup(client)
+    fake = FakeAIClient(result=VALID_MATCH)
+    _override_ai(fake)
+
+    response = _post_match(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(b"just a resume", filename="resume.txt", content_type="text/plain"),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "The resume must be a PDF file."
     assert fake.calls == []
 
 
@@ -153,29 +202,63 @@ def test_jd_match_rejects_empty_job_description(client: TestClient) -> None:
     fake = FakeAIClient(result=VALID_MATCH)
     _override_ai(fake)
 
-    response = client.post(
-        MATCH_PATH,
-        headers=_auth_headers(tokens["access_token"]),
-        json={"resume_text": VALID_RESUME, "job_description": ""},
+    response = _post_match(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(_make_pdf_bytes(VALID_RESUME)),
+        job_description="",
     )
 
     assert response.status_code == 422
     assert fake.calls == []
 
 
-def test_jd_match_rejects_oversized_input(client: TestClient) -> None:
+def test_jd_match_rejects_oversized_pdf(client: TestClient) -> None:
     tokens = _signup(client)
     fake = FakeAIClient(result=VALID_MATCH)
     _override_ai(fake)
-    oversized = "x" * (RESUME_ANALYSIS_TEXT_MAX_LENGTH + 1)
+    oversized = b"%PDF-1.4\n" + (b"x" * RESUME_PDF_MAX_BYTES)
 
-    response = client.post(
-        MATCH_PATH,
-        headers=_auth_headers(tokens["access_token"]),
-        json={"resume_text": oversized, "job_description": VALID_JD},
+    response = _post_match(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(oversized),
     )
 
     assert response.status_code == 422
+    assert response.json()["detail"] == "The resume PDF must be 5 MB or smaller."
+    assert fake.calls == []
+
+
+def test_jd_match_rejects_corrupt_pdf(client: TestClient) -> None:
+    tokens = _signup(client)
+    fake = FakeAIClient(result=VALID_MATCH)
+    _override_ai(fake)
+
+    response = _post_match(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(b"%PDF-not-a-real-document"),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "The uploaded file is not a valid PDF."
+    assert fake.calls == []
+
+
+def test_jd_match_rejects_pdf_with_no_extractable_text(client: TestClient) -> None:
+    tokens = _signup(client)
+    fake = FakeAIClient(result=VALID_MATCH)
+    _override_ai(fake)
+
+    response = _post_match(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(_make_pdf_bytes(None)),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "No extractable text was found in the PDF."
     assert fake.calls == []
 
 
@@ -184,10 +267,10 @@ def test_jd_match_provider_error(client: TestClient) -> None:
     fake = FakeAIClient(error=AIProviderError(f"upstream rejected {TEST_API_KEY}"))
     _override_ai(fake)
 
-    response = client.post(
-        MATCH_PATH,
-        headers=_auth_headers(tokens["access_token"]),
-        json={"resume_text": VALID_RESUME, "job_description": VALID_JD},
+    response = _post_match(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(_make_pdf_bytes(VALID_RESUME)),
     )
 
     assert response.status_code == 502
@@ -200,10 +283,10 @@ def test_jd_match_timeout(client: TestClient) -> None:
     fake = FakeAIClient(error=AITimeoutError("The AI provider timed out."))
     _override_ai(fake)
 
-    response = client.post(
-        MATCH_PATH,
-        headers=_auth_headers(tokens["access_token"]),
-        json={"resume_text": VALID_RESUME, "job_description": VALID_JD},
+    response = _post_match(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(_make_pdf_bytes(VALID_RESUME)),
     )
 
     assert response.status_code == 504
@@ -215,10 +298,10 @@ def test_jd_match_malformed_json(client: TestClient) -> None:
     fake = FakeAIClient(raw="{not-json")
     _override_ai(fake)
 
-    response = client.post(
-        MATCH_PATH,
-        headers=_auth_headers(tokens["access_token"]),
-        json={"resume_text": VALID_RESUME, "job_description": VALID_JD},
+    response = _post_match(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(_make_pdf_bytes(VALID_RESUME)),
     )
 
     assert response.status_code == 502
@@ -231,10 +314,10 @@ def test_jd_match_schema_validation_failure(client: TestClient) -> None:
     fake = FakeAIClient(raw='{"match_score": 40}')
     _override_ai(fake)
 
-    response = client.post(
-        MATCH_PATH,
-        headers=_auth_headers(tokens["access_token"]),
-        json={"resume_text": VALID_RESUME, "job_description": VALID_JD},
+    response = _post_match(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(_make_pdf_bytes(VALID_RESUME)),
     )
 
     assert response.status_code == 502
@@ -249,10 +332,10 @@ def test_jd_match_score_out_of_range(client: TestClient) -> None:
     )
     _override_ai(fake)
 
-    response = client.post(
-        MATCH_PATH,
-        headers=_auth_headers(tokens["access_token"]),
-        json={"resume_text": VALID_RESUME, "job_description": VALID_JD},
+    response = _post_match(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(_make_pdf_bytes(VALID_RESUME)),
     )
 
     assert response.status_code == 502
@@ -267,10 +350,10 @@ def test_jd_match_score_negative_is_rejected(client: TestClient) -> None:
     )
     _override_ai(fake)
 
-    response = client.post(
-        MATCH_PATH,
-        headers=_auth_headers(tokens["access_token"]),
-        json={"resume_text": VALID_RESUME, "job_description": VALID_JD},
+    response = _post_match(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(_make_pdf_bytes(VALID_RESUME)),
     )
 
     assert response.status_code == 502
@@ -284,10 +367,10 @@ def test_jd_match_does_not_return_api_key_even_if_model_adds_extra_fields(
     fake = FakeAIClient(result=extra)
     _override_ai(fake)
 
-    response = client.post(
-        MATCH_PATH,
-        headers=_auth_headers(tokens["access_token"]),
-        json={"resume_text": VALID_RESUME, "job_description": VALID_JD},
+    response = _post_match(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(_make_pdf_bytes(VALID_RESUME)),
     )
 
     assert response.status_code == 200
@@ -309,10 +392,10 @@ def test_jd_match_response_error_is_mapped(client: TestClient) -> None:
     fake = FakeAIClient(error=AIResponseError("The AI provider returned invalid JSON."))
     _override_ai(fake)
 
-    response = client.post(
-        MATCH_PATH,
-        headers=_auth_headers(tokens["access_token"]),
-        json={"resume_text": VALID_RESUME, "job_description": VALID_JD},
+    response = _post_match(
+        client,
+        access_token=tokens["access_token"],
+        files=_resume_file(_make_pdf_bytes(VALID_RESUME)),
     )
 
     assert response.status_code == 502
